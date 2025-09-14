@@ -31,6 +31,7 @@
                     # Nice utilities
                     fd
                     ripgrep
+                    nushell
                 ];
 
                 nativeBuildInputs = with pkgs; [ pkg-config ];

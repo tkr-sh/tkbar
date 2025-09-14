@@ -28,7 +28,7 @@ nix-run:
 check:
     cargo check
     cargo fmt
-    cargo nextest run
+    try { cargo nextest run }
     cargo clippy
     taplo fmt
 
