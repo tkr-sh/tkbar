@@ -78,7 +78,7 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                             id: w.id,
                             idx: w.idx,
                             output: w.output,
-                            is_active: w.is_active,
+                            is_active: w.active_window_id.is_some(),
                             is_focused: w.is_focused,
                         }
                     })
