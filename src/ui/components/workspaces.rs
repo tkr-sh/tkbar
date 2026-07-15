@@ -86,14 +86,7 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                 let _ = tx.send_blocking(state.clone());
             },
             Event::WorkspaceActivated { id, focused } => {
-                let output = state
-                    .iter()
-                    .find(|w| w.id == id)
-                    .and_then(|w| w.output.clone());
                 for w in state.iter_mut() {
-                    if w.output == output {
-                        w.is_active = w.id == id;
-                    }
                     if focused {
                         w.is_focused = w.id == id;
                     }
