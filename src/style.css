@@ -118,3 +118,11 @@ window {
     padding: 8px;
     line-height: 24px;
 }
+
+.charging {
+    background: linear-gradient(transparent, #88ff7788);
+}
+
+.critical {
+    background: linear-gradient(transparent, #ff445599);
+}
