@@ -120,9 +120,9 @@ window {
 }
 
 .charging {
-    background: linear-gradient(@bg 50%, #99ff8a88);
+    background: linear-gradient(@bg 30%, #596258EE 75%, #99ff8a88);
 }
 
 .critical {
-    background: linear-gradient(@bg 50%, #ff445599);
+    background: linear-gradient(@bg 30%, #995958EE 75%, #ff445688);
 }
