@@ -91,10 +91,28 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                         w.is_focused = w.id == id;
                     }
                 }
-                let _ = tx.send_blocking(state.clone());
             },
             _ => {},
         }
+
+
+        let new_state = (1u8..=10u8).map(|idx| {
+            state
+                .clone()
+                .into_iter()
+                .find(|wks| wks.idx == idx)
+                .unwrap_or_else(|| {
+                    NiriWs {
+                        id: idx as u64,
+                        idx,
+                        output: None,
+                        is_active: false,
+                        is_focused: false,
+                    }
+                })
+        });
+
+        let _ = tx.send_blocking(new_state.collect());
     }
 }
 
