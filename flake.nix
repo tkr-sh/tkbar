@@ -1,5 +1,5 @@
 {
-    description = "Project flake";
+    description = "tkbar - GTK4 layer-shell status bar";
 
     inputs = {
         nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -23,7 +23,7 @@
                     just
                     nushell
                     taplo
-                    bacon
+                    watchexec
                     openssl
                     cargo-nextest
                     cargo-machete
@@ -31,12 +31,24 @@
                     # Nice utilities
                     fd
                     ripgrep
-                    nushell
+
+                    # GTK stack
+                    gtk4
+                    gtk4-layer-shell
+                    glib
+                    gsettings-desktop-schemas
+                ];
+                nativeBuildInputs = with pkgs; [
+                    pkg-config
+                    wrapGAppsHook4
                 ];
 
-                nativeBuildInputs = with pkgs; [ pkg-config ];
+                # GTK looks up gsettings schemas and icons via XDG_DATA_DIRS;
+                # without this the binary can abort at startup in a pure shell.
+                shellHook = ''
+                    export XDG_DATA_DIRS=${gsettings-desktop-schemas}/share/gsettings-schemas/${gsettings-desktop-schemas.name}:${gtk4}/share/gsettings-schemas/${gtk4.name}:$XDG_DATA_DIRS
+                '';
             };
         }
     );
 }
-

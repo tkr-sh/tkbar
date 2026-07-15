@@ -4,6 +4,11 @@
     version = "0.0.1"
 
 [dependencies]
+    async-channel = "2.5.0"
+    chrono = "0.4"
+    gtk4 = { version = "0.9", features = ["v4_12"] }
+    gtk4-layer-shell = "0.4"
+    niri-ipc = "26.4.0"
 
 
 # <https://rust-lang.github.io/rust-clippy/master>

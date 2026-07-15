@@ -1,0 +1,6 @@
+[jobs.run-long]
+    background = false
+    command = ["cargo", "run"]
+    kill = ["-s", "INT", "kill"]
+    need_stdout = true
+    on_change_strategy = "kill_then_restart"

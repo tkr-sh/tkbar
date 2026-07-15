@@ -8,7 +8,7 @@ env:
 # Watch
 [group: 'dev']
 w:
-    bacon
+    bacon run-long
 
 [group: 'dev']
 nix-w:

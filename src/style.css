@@ -1,0 +1,120 @@
+@define-color bg #392228EE;
+@define-color bgh #493239EE;
+ 
+window {
+    background: transparent;
+}
+ 
+.bar {
+    background-color: #221113EE;
+    border-radius: 16px;
+    color: #e0e0e6;
+    padding: 8px 6px;
+    font-family: monospace;
+    margin: 8px 8px;
+}
+ 
+.logo {
+    font-size: 28px;
+    color: #FDE;
+    background: linear-gradient(#F89, #F57);
+    min-height: 46px;
+    min-width: 46px;
+    margin: 0px;
+    padding: 0px;
+    border-radius: 12px;
+}
+
+.workspaces {
+    font-size: 20px;
+    color: #FDE;
+    background: @bg;
+    min-height: 36px;
+    margin: 0px;
+    border-radius: 12px;
+    padding: 8px 0px;
+}
+
+.volume, .brightness, .wifi, .battery {
+    background: @bg;
+    border-radius: 12px;
+    padding: 8px;
+    color: #f9a;
+    transition: .3s;
+}
+
+.volume:hover, .brightness:hover, .wifi:hover, .battery:hover {
+    background-color: @bgh;
+}
+
+.wifi {
+    min-height: 32px;
+    min-width: 28px;
+    padding-right: 12px;
+    font-size: 20px;
+}
+
+
+
+.workspace {
+    color: #322;
+    margin: 0px 6px;
+    font-weight: bold;
+    background: #fcda;
+    border-radius: 10px;
+    padding: 4px 0px;
+    transition: .3s;
+}
+
+.workspace:hover {
+    background: #fcdc;
+}
+
+.workspace-inactive {
+    color: #fff8;
+    font-weight: normal;
+    background: transparent;
+    padding: 0px 0px;
+}
+
+.workspace-inactive:hover {
+    background: #fcd3;
+}
+
+
+
+.workspace-current {
+    color: #322;
+    font-weight: 900;
+    background: #f79;
+    min-height: 32px;
+    border-radius: 12px;
+
+}
+
+
+
+.muted {
+    color: #fff8;
+}
+
+.brightness-icon {
+    margin-left: -4px;
+}
+
+.volume-icon,  .brightness-icon, .wifi-icon {
+    font-size: 20px;
+    line-height: 18px;
+}
+.volume-value, .brightness-value {
+    font-size: 14px;
+}
+ 
+.clock {
+    font-size: 18px;
+    font-weight: 900;
+    background: @bg;
+    border-radius: 12px;
+    padding: 8px;
+    line-height: 24px;
+}
