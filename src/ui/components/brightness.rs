@@ -106,7 +106,7 @@ fn find_device() -> Option<std::path::PathBuf> {
         .next()
 }
 
-fn read_percent(device: &std::path::PathBuf) -> Option<u32> {
+fn read_percent(device: &std::path::Path) -> Option<u32> {
     let read_u32 = |name: &str| -> Option<u32> {
         std::fs::read_to_string(device.join(name))
             .ok()?

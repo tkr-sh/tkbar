@@ -99,14 +99,14 @@ window {
 }
 
 .brightness-icon {
-    margin-left: -4px;
+    margin-left: -6px;
 }
 
-.volume-icon,  .brightness-icon, .wifi-icon {
+.volume-icon,  .brightness-icon, .wifi-icon, .battery-icon {
     font-size: 20px;
     line-height: 18px;
 }
-.volume-value, .brightness-value {
+.volume-value, .brightness-value, .battery-value {
     font-size: 14px;
 }
  

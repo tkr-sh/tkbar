@@ -1,7 +1,12 @@
 use {
     gtk::{glib, prelude::*, Box as GtkBox, Label, Orientation},
-    gtk4 as gtk,
-    std::{fs, path::PathBuf, thread, time::Duration},
+    gtk4::{self as gtk},
+    std::{
+        fs,
+        path::{Path, PathBuf},
+        thread,
+        time::Duration,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -126,7 +131,7 @@ fn find_battery() -> Option<PathBuf> {
         })
 }
 
-fn read_state(device: &PathBuf) -> Option<BatteryState> {
+fn read_state(device: &Path) -> Option<BatteryState> {
     let percent: u32 = fs::read_to_string(device.join("capacity"))
         .ok()?
         .trim()
