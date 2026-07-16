@@ -42,7 +42,7 @@ pub fn workspaces() -> GtkBox {
                     let btn = Button::with_label(&ws.idx.to_string());
                     btn.add_css_class("workspace");
                     if ws.is_focused {
-                        btn.add_css_class("wokrspace-current");
+                        btn.add_css_class("workspace-current");
                     } else if !ws.is_active {
                         btn.add_css_class("workspace-inactive");
                     }
