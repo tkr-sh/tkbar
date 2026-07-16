@@ -64,6 +64,7 @@ window {
     border-radius: 10px;
     padding: 4px 0px;
     transition: .3s;
+    font-size: 18px
 }
 
 .workspace:hover {
