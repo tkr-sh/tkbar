@@ -32,7 +32,7 @@ window {
     min-height: 36px;
     margin: 0px;
     border-radius: 12px;
-    padding: 8px 0px;
+    padding: 8px 6px;
 }
 
 .volume, .brightness, .wifi, .battery {
@@ -58,7 +58,6 @@ window {
 
 .workspace {
     color: #322;
-    margin: 0px 6px;
     font-weight: bold;
     background: #fcda;
     border-radius: 10px;
