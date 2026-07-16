@@ -1,5 +1,5 @@
 use {
-    gtk::{glib, prelude::*, Box as GtkBox, Button, Orientation},
+    gtk::{glib, prelude::*, Align, Box as GtkBox, Button, Orientation},
     gtk4 as gtk,
     niri_ipc::{socket::Socket, Action, Event, Request, Response, WorkspaceReferenceArg},
     std::thread,
@@ -46,6 +46,8 @@ pub fn workspaces() -> GtkBox {
                     } else if !ws.is_active {
                         btn.add_css_class("workspace-inactive");
                     }
+                    btn.set_valign(Align::Center);
+                    btn.set_halign(Align::Center);
 
                     let id = ws.id;
                     btn.connect_clicked(move |_| focus_workspace(id));
