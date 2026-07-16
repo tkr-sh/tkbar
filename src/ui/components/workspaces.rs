@@ -87,6 +87,7 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
             },
             Event::WorkspaceActivated { id, focused } => {
                 for w in state.iter_mut() {
+                    println!("{w:#?} {focused:#?} {id:#?}");
                     if focused {
                         w.is_focused = w.id == id;
                     }
