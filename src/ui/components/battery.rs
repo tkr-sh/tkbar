@@ -132,7 +132,7 @@ fn find_battery() -> Option<PathBuf> {
         .iter()
         .find(|(battery, _)| {
             if let BatteryState::Present { percent, charging } = battery {
-                *percent != 100 && !*charging
+                *percent != 100 || !*charging
             } else {
                 false
             }
