@@ -29,10 +29,10 @@ window {
     font-size: 20px;
     color: #FDE;
     background: @bg;
-    min-height: 36px;
+    /* min-height: 36px; */
     margin: 0px;
     border-radius: 12px;
-    padding: 8px 6px;
+    padding: 8px 0px;
 }
 
 .volume, .brightness, .wifi, .battery {
@@ -61,9 +61,9 @@ window {
     font-weight: bold;
     background: #fcda;
     border-radius: 10px;
-    padding: 4px 0px;
+    padding: 2px 0px;
     transition: .3s;
-    font-size: 18px
+    font-size: 16px
 }
 
 .workspace:hover {
