@@ -9,7 +9,7 @@ use {
     },
 };
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum BatteryState {
     NoBattery,
     Present { percent: u32, charging: bool },
@@ -120,15 +120,26 @@ const fn icon_for(percent: u32, charging: bool) -> &'static str {
 
 
 fn find_battery() -> Option<PathBuf> {
-    fs::read_dir("/sys/class/power_supply")
+    let batteries: Vec<(BatteryState, PathBuf)> = fs::read_dir("/sys/class/power_supply")
         .ok()?
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .find(|p| {
-            fs::read_to_string(p.join("type"))
-                .map(|t| t.trim() == "Battery")
-                .unwrap_or(false)
+        .filter(|p| fs::read_to_string(p.join("type")).is_ok_and(|t| t.trim() == "Battery"))
+        .filter_map(|b| read_state(&b).map(|some| (some, b)))
+        .collect();
+
+    batteries
+        .iter()
+        .find(|(battery, _)| {
+            if let BatteryState::Present { percent, charging } = battery {
+                *percent != 100 && !*charging
+            } else {
+                false
+            }
         })
+        .or_else(|| batteries.first())
+        .map(|(_, path)| path)
+        .cloned()
 }
 
 fn read_state(device: &Path) -> Option<BatteryState> {
