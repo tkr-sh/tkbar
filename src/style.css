@@ -63,7 +63,8 @@ window {
     border-radius: 10px;
     padding: 2px 0px;
     transition: .3s;
-    font-size: 16px
+    font-size: 16px;
+    transition: 0.3s;
 }
 
 .workspace:hover {
@@ -75,6 +76,7 @@ window {
     font-weight: normal;
     background: transparent;
     padding: 0px 0px;
+    transition: 0.3s;
 }
 
 .workspace-inactive:hover {
@@ -89,7 +91,7 @@ window {
     background: #f79;
     min-height: 32px;
     border-radius: 12px;
-
+    transition: 0.3s;
 }
 
 
