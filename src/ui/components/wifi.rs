@@ -1,5 +1,5 @@
 use {
-    gtk::{Label, glib, prelude::*},
+    gtk::{glib, prelude::*, Label},
     gtk4 as gtk,
     std::{fs, process::Command, thread, time::Duration},
 };
@@ -119,7 +119,7 @@ fn dbm_to_percent(dbm: i32) -> u32 {
 
 const fn icon_for(state: &WifiState) -> &'static str {
     match state {
-        WifiState::Disconnected => "󰤭",
+        WifiState::Disconnected => "󰤮",
         WifiState::Connected { signal, .. } => {
             match signal {
                 Some(s) => {
