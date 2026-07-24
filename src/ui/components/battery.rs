@@ -1,5 +1,5 @@
 use {
-    gtk::{glib, prelude::*, Box as GtkBox, Label, Orientation},
+    gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4::{self as gtk},
     std::{
         fs,

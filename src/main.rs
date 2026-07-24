@@ -1,7 +1,7 @@
 use {
-    gtk::{glib, prelude::*, Application},
+    gtk::{Application, glib, prelude::*},
     gtk4 as gtk,
-    project::{build_window, load_css, APP_ID},
+    project::{APP_ID, build_window, load_css},
 };
 
 fn main() -> glib::ExitCode {

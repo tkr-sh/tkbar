@@ -1,7 +1,7 @@
 use {
-    gtk::{glib, prelude::*, Align, Box as GtkBox, Button, Orientation},
+    gtk::{Align, Box as GtkBox, Button, Orientation, glib, prelude::*},
     gtk4 as gtk,
-    niri_ipc::{socket::Socket, Action, Event, Request, Response, WorkspaceReferenceArg},
+    niri_ipc::{Action, Event, Request, Response, WorkspaceReferenceArg, socket::Socket},
     std::thread,
 };
 

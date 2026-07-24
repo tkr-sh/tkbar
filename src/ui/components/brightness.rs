@@ -1,13 +1,13 @@
 use {
     gtk::{
-        glib,
-        prelude::*,
         Box as GtkBox,
         EventControllerScroll,
         EventControllerScrollFlags,
         GestureClick,
         Label,
         Orientation,
+        glib,
+        prelude::*,
     },
     gtk4 as gtk,
     std::{process::Command, thread, time::Duration},
@@ -41,13 +41,14 @@ pub fn brightness() -> GtkBox {
 
         let mut last: Option<u32> = None;
         loop {
-            if let Some(percent) = read_percent(&device)
-                && last != Some(percent) {
-                    last = Some(percent);
-                    if tx.send_blocking(percent).is_err() {
-                        return;
-                    }
+            if let Some(percent) = read_percent(&device) &&
+                last != Some(percent)
+            {
+                last = Some(percent);
+                if tx.send_blocking(percent).is_err() {
+                    return;
                 }
+            }
             thread::sleep(Duration::from_millis(500));
         }
     });

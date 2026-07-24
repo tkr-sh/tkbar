@@ -1,13 +1,13 @@
 use {
     gtk::{
-        glib,
-        prelude::*,
         Box as GtkBox,
         EventControllerScroll,
         EventControllerScrollFlags,
         GestureClick,
         Label,
         Orientation,
+        glib,
+        prelude::*,
     },
     gtk4 as gtk,
     std::{
@@ -59,10 +59,11 @@ pub fn volume() -> GtkBox {
         let stdout = child.stdout.take().expect("piped stdout");
 
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if (line.contains(" sink ") || line.contains(" server "))
-                && let Some(s) = query() {
-                    let _ = tx.send_blocking(s);
-                }
+            if (line.contains(" sink ") || line.contains(" server ")) &&
+                let Some(s) = query()
+            {
+                let _ = tx.send_blocking(s);
+            }
         }
     });
 

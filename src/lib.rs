@@ -1,7 +1,4 @@
-use {
-    gtk::CssProvider,
-    gtk4 as gtk,
-};
+use {gtk::CssProvider, gtk4 as gtk};
 
 pub use crate::ui::build_window;
 

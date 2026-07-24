@@ -1,5 +1,5 @@
 use {
-    gtk::{prelude::*, Application, ApplicationWindow, Box as GtkBox, Orientation},
+    gtk::{Application, ApplicationWindow, Box as GtkBox, Orientation, prelude::*},
     gtk4 as gtk,
     gtk4_layer_shell::{Edge, Layer, LayerShell},
 };
