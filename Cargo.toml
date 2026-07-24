@@ -13,11 +13,6 @@
 
 # <https://rust-lang.github.io/rust-clippy/master>
 [lints.clippy]
-    # Have false positives
-    borrow_deref_ref = "allow"
-    deref_addrof = "allow"
-    drain_collect = "allow"
-
     # Based
     allow_attributes_without_reason = "warn"
     clear_with_drain = "warn"
@@ -62,7 +57,6 @@
     significant_drop_in_scrutinee = "warn"
     single_char_pattern = "warn"
     str_split_at_newline = "warn"
-    string_to_string = "warn"
     trait_duplication_in_bounds = "warn"
     undocumented_unsafe_blocks = "warn"
     unnested_or_patterns = "warn"
@@ -81,13 +75,13 @@
     cognitive_complexity = "warn"
     comparison_chain = "warn"
     doc_link_with_quotes = "warn"
-    empty_enum = "warn"
+    empty_enums = "warn"
     equatable_if_let = "warn"
     if_not_else = "warn"
+    indexing_slicing = "warn"
     iter_on_single_items = "warn"
     large_digit_groups = "warn"
     manual_midpoint = "warn"
-    match_on_vec_items = "warn"
     negative_feature_names = "warn"
     option_option = "warn"
     path_buf_push_overwrite = "warn"
@@ -107,7 +101,6 @@
     doc_link_code = "warn"
     fallible_impl_from = "warn"
     format_push_string = "warn"
-    from_iter_instead_of_collect = "warn"
     implicit_clone = "warn"
     items_after_statements = "warn"
     literal_string_with_formatting_args = "warn"
@@ -123,7 +116,7 @@
     string_lit_as_bytes = "warn"
     too_long_first_doc_paragraph = "warn"
     trivial_regex = "warn"
-    unchecked_duration_subtraction = "warn"
+    unchecked_time_subtraction = "warn"
     unnecessary_join = "warn"
     unwrap_used = "warn"                          # With clippy.toml `allow-unwrap-in-test`
 

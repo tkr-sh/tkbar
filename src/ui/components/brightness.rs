@@ -41,14 +41,13 @@ pub fn brightness() -> GtkBox {
 
         let mut last: Option<u32> = None;
         loop {
-            if let Some(percent) = read_percent(&device) {
-                if last != Some(percent) {
+            if let Some(percent) = read_percent(&device)
+                && last != Some(percent) {
                     last = Some(percent);
                     if tx.send_blocking(percent).is_err() {
                         return;
                     }
                 }
-            }
             thread::sleep(Duration::from_millis(500));
         }
     });

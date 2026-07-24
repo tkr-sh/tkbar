@@ -8,12 +8,17 @@
         flake-utils.url  = "github:numtide/flake-utils";
     };
 
-    outputs = { nixpkgs, flake-utils, rust-overlay, ... }:
+    outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
         flake-utils.lib.eachDefaultSystem (system:
         let
             overlays = [ (import rust-overlay) ];
             pkgs = import nixpkgs {
                 inherit system overlays;
+            };
+            rustToolchain = pkgs.rust-bin.nightly.latest.default;
+            rustPlatform = pkgs.makeRustPlatform {
+                cargo = rustToolchain;
+                rustc = rustToolchain;
             };
         in
         {
@@ -48,6 +53,27 @@
                 shellHook = ''
                     export XDG_DATA_DIRS=${gsettings-desktop-schemas}/share/gsettings-schemas/${gsettings-desktop-schemas.name}:${gtk4}/share/gsettings-schemas/${gtk4.name}:$XDG_DATA_DIRS
                 '';
+            };
+
+            packages.default = rustPlatform.buildRustPackage {
+                pname = "tkbar";
+                version = "0.1.0";
+                src = ./.;
+                cargoLock.lockFile = ./Cargo.lock;
+
+                nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
+                buildInputs = with pkgs; [
+                    gtk4
+                        gtk4-layer-shell
+                        glib
+                        openssl
+                        gsettings-desktop-schemas
+                ];
+            };
+
+            apps.default = {
+                type = "app";
+                program = "${self.packages.${system}.default}/bin/tkbar";
             };
         }
     );

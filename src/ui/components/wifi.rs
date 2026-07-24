@@ -114,7 +114,7 @@ fn query(device: &str) -> Option<WifiState> {
 }
 
 fn dbm_to_percent(dbm: i32) -> u32 {
-    (2 * (dbm + 100)).clamp(0, 100) as u32
+    u32::try_from((2 * (dbm + 100)).clamp(0, 100)).unwrap_or_default()
 }
 
 const fn icon_for(state: &WifiState) -> &'static str {

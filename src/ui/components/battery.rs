@@ -41,7 +41,7 @@ pub fn battery() -> GtkBox {
         loop {
             let state = read_state(&device).unwrap_or(BatteryState::NoBattery);
             if last.as_ref() != Some(&state) {
-                last = Some(state.clone());
+                last = Some(state);
                 if tx.send_blocking(state).is_err() {
                     return;
                 }
@@ -88,32 +88,38 @@ pub fn battery() -> GtkBox {
     container
 }
 
+#[allow(
+    clippy::wildcard_in_or_patterns,
+    reason = "Make it clearer that in theory it should just be 100, but it's also the default case"
+)]
 const fn icon_for(percent: u32, charging: bool) -> &'static str {
     if charging {
         match percent {
-            0..=9 => "󰢜",
-            10..=19 => "󰂆",
-            20..=29 => "󰂇",
-            30..=39 => "󰂈",
-            40..=49 => "󰢝",
-            50..=59 => "󰂉",
-            60..=69 => "󰢞",
-            70..=79 => "󰂊",
-            80..=89 => "󰂋",
-            _ => "󰂅",
+            0..=9 => "󰢟",
+            10..=19 => "󰢜",
+            20..=29 => "󰂆",
+            30..=39 => "󰂇",
+            40..=49 => "󰂈",
+            50..=59 => "󰢝",
+            60..=69 => "󰂉",
+            70..=79 => "󰢞",
+            80..=89 => "󰂊",
+            90..=99 => "󰂋",
+            100 | _ => "󰂅",
         }
     } else {
         match percent {
-            0..=9 => "󰁺",
-            10..=19 => "󰁻",
-            20..=29 => "󰁼",
-            30..=39 => "󰁽",
-            40..=49 => "󰁾",
-            50..=59 => "󰁿",
-            60..=69 => "󰂀",
-            70..=79 => "󰂁",
-            80..=89 => "󰂂",
-            _ => "󰁹",
+            0..=9 => "󰂎",
+            10..=19 => "󰁺",
+            20..=29 => "󰁻",
+            30..=39 => "󰁼",
+            40..=49 => "󰁽",
+            50..=59 => "󰁾",
+            60..=69 => "󰁿",
+            70..=79 => "󰂀",
+            80..=89 => "󰂁",
+            90..=99 => "󰂂",
+            100 | _ => "󰁹",
         }
     }
 }

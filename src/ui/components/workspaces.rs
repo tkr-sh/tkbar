@@ -9,7 +9,6 @@ use {
 struct NiriWs {
     id: u64,
     idx: u8,
-    output: Option<String>,
     is_active: bool,
     is_focused: bool,
 }
@@ -79,7 +78,6 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                         NiriWs {
                             id: w.id,
                             idx: w.idx,
-                            output: w.output,
                             is_active: w.active_window_id.is_some(),
                             is_focused: w.is_focused,
                         }
@@ -105,9 +103,8 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                 .find(|wks| wks.idx == idx)
                 .unwrap_or_else(|| {
                     NiriWs {
-                        id: idx as u64,
+                        id: u64::from(idx),
                         idx,
-                        output: None,
                         is_active: false,
                         is_focused: false,
                     }
