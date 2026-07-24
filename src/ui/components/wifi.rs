@@ -130,7 +130,7 @@ const fn icon_for(state: &WifiState) -> &'static str {
                         _ => "󰤨",
                     }
                 },
-                None => "󰤨",
+                None => "󰤯",
             }
         },
     }
