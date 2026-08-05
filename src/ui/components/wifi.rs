@@ -1,5 +1,5 @@
 use {
-    gtk::{glib, prelude::*, Label},
+    gtk::{Label, glib, prelude::*},
     gtk4 as gtk,
     std::{fs, process::Command, thread, time::Duration},
 };

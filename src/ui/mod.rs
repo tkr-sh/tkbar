@@ -5,12 +5,21 @@ use {
 };
 mod components;
 
+pub(crate) use components::Component;
+
 const BAR_WIDTH: i32 = 72;
+
+pub enum BarPosition {
+    Left,
+    Right,
+    Top,
+    Bottom,
+}
 
 pub fn build_window(app: &Application) {
     let window = ApplicationWindow::builder()
         .application(app)
-        .default_width(BAR_WIDTH)
+        .default_width(i32::try_from(crate::conf::CONFIG.bar_size_px).unwrap_or(BAR_WIDTH))
         .build();
 
     window.init_layer_shell();
@@ -34,12 +43,7 @@ pub fn build_window(app: &Application) {
 }
 
 pub fn build_inner_window(bar: &GtkBox) {
-    bar.append(&components::nix_logo());
-    bar.append(&components::workspaces());
-    bar.append(&components::spacer());
-    bar.append(&components::battery());
-    bar.append(&components::wifi());
-    bar.append(&components::brightness());
-    bar.append(&components::volume());
-    bar.append(&components::clock());
+    for component in &crate::conf::CONFIG.components {
+        component.add_to_bar(bar);
+    }
 }

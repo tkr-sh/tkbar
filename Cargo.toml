@@ -1,6 +1,6 @@
 [package]
     edition = "2024"
-    name = "project"
+    name = "tkbar"
     version = "0.0.1"
 
 [dependencies]
@@ -9,6 +9,14 @@
     gtk4 = { version = "0.9", features = ["v4_12"] }
     gtk4-layer-shell = "0.4"
     niri-ipc = "26.4.0"
+
+    # Config
+    directories = { version = "6", optional = true }
+
+
+[features]
+    config = ["dep:directories"]
+    default = ["config"]
 
 
 # <https://rust-lang.github.io/rust-clippy/master>

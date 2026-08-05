@@ -16,34 +16,36 @@ use {
     gtk4 as gtk,
 };
 
-pub fn nix_logo() -> Label {
-    let logo = Label::new(Some("󱄅"));
-    logo.add_css_class("logo");
-    logo.set_xalign(0.45);
-    logo
+pub enum Component {
+    Logo(char),
+    Workspaces,
+    Spacer,
+    Battery,
+    Wifi,
+    Brightness,
+    Volume,
+    Clock,
 }
 
-// pub fn workspaces() -> GtkBox {
-//     let container = GtkBox::new(Orientation::Vertical, 10);
-//     container.add_css_class("workspaces");
-//
-//     for idx in 1..=10 {
-//         let wsp = Label::new(Some(&idx.to_string()));
-//         wsp.add_css_class("workspace");
-//
-//         if idx % 2 == 0 {
-//             wsp.add_css_class("workspace-inactive");
-//         }
-//
-//         if idx % 6 == 0 {
-//             wsp.add_css_class("workspace-current");
-//         }
-//
-//         container.append(&wsp);
-//     }
-//
-//     container
-// }
+impl Component {
+    pub(crate) fn add_to_bar(&self, bar: &GtkBox) {
+        match self {
+            Component::Logo(c) => {
+                let logo = Label::new(Some(&c.to_string()));
+                logo.add_css_class("logo");
+                logo.set_xalign(0.45);
+                bar.append(&logo);
+            },
+            Component::Workspaces => bar.append(&workspaces()),
+            Component::Spacer => bar.append(&spacer()),
+            Component::Battery => bar.append(&battery()),
+            Component::Wifi => bar.append(&wifi()),
+            Component::Brightness => bar.append(&brightness()),
+            Component::Volume => bar.append(&volume()),
+            Component::Clock => bar.append(&clock()),
+        }
+    }
+}
 
 pub fn spacer() -> GtkBox {
     let spacer = GtkBox::new(Orientation::Vertical, 0);

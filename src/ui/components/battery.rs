@@ -46,7 +46,7 @@ pub fn battery() -> GtkBox {
                     return;
                 }
             }
-            thread::sleep(Duration::from_secs(5));
+            thread::sleep(Duration::from_millis(500));
         }
     });
 

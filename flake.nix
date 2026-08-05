@@ -29,7 +29,6 @@
                     nushell
                     taplo
                     watchexec
-                    openssl
                     cargo-nextest
                     cargo-machete
 
@@ -42,6 +41,11 @@
                     gtk4-layer-shell
                     glib
                     gsettings-desktop-schemas
+
+                    # Runtime tools the bar shells out to
+                    brightnessctl
+                    wireplumber
+                    iwd
                 ];
                 nativeBuildInputs = with pkgs; [
                     pkg-config
@@ -61,14 +65,26 @@
                 src = ./.;
                 cargoLock.lockFile = ./Cargo.lock;
 
+
                 nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
                 buildInputs = with pkgs; [
                     gtk4
-                        gtk4-layer-shell
-                        glib
-                        openssl
-                        gsettings-desktop-schemas
+                    gtk4-layer-shell
+                    glib
+                    gsettings-desktop-schemas
                 ];
+
+                # Make the tools the bar shells out to resolvable at runtime.
+                postFixup = ''
+                    wrapProgram $out/bin/tkbar \
+                      --prefix PATH : ${
+                          pkgs.lib.makeBinPath [
+                              pkgs.brightnessctl
+                              pkgs.wireplumber
+                              pkgs.iwd
+                          ]
+                      }
+                '';
             };
 
             apps.default = {

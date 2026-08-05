@@ -10,7 +10,7 @@ use {
         prelude::*,
     },
     gtk4 as gtk,
-    std::{process::Command, thread, time::Duration},
+    std::{path::PathBuf, process::Command, thread, time::Duration},
 };
 
 
@@ -33,25 +33,28 @@ pub fn brightness() -> GtkBox {
 
     let (tx, rx) = async_channel::unbounded::<u32>();
 
-    thread::spawn(move || {
-        let Some(device) = find_device() else {
-            eprintln!("brightness: no device under /sys/class/backlight");
-            return;
-        };
+    let device = find_device();
+    if device.is_none() {
+        eprintln!("brightness: no device under /sys/class/backlight");
+    }
 
-        let mut last: Option<u32> = None;
-        loop {
-            if let Some(percent) = read_percent(&device) &&
-                last != Some(percent)
-            {
-                last = Some(percent);
-                if tx.send_blocking(percent).is_err() {
-                    return;
+    if let Some(device) = device.clone() {
+        let poll_tx = tx.clone();
+        thread::spawn(move || {
+            let mut last: Option<u32> = None;
+            loop {
+                if let Some(percent) = read_percent(&device) &&
+                    last != Some(percent)
+                {
+                    last = Some(percent);
+                    if poll_tx.send_blocking(percent).is_err() {
+                        return;
+                    }
                 }
+                thread::sleep(Duration::from_millis(500));
             }
-            thread::sleep(Duration::from_millis(500));
-        }
-    });
+        });
+    }
 
     // UI side.
     glib::spawn_future_local(glib::clone!(
@@ -69,19 +72,23 @@ pub fn brightness() -> GtkBox {
     ));
 
     let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
-    scroll.connect_scroll(|_, _dx, dy| {
+    let scroll_tx = tx.clone();
+    let scroll_device = device.clone();
+    scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            brightnessctl("5%+");
+            brightnessctl("5%+", scroll_device.clone(), scroll_tx.clone());
         } else {
-            brightnessctl("5%-");
+            brightnessctl("5%-", scroll_device.clone(), scroll_tx.clone());
         }
         glib::Propagation::Stop
     });
     container.add_controller(scroll);
 
     let click = GestureClick::new();
-    click.connect_released(|_, _, _, _| {
-        brightnessctl("1");
+    let click_tx = tx.clone();
+    let click_device = device.clone();
+    click.connect_released(move |_, _, _, _| {
+        brightnessctl("1", click_device.clone(), click_tx.clone());
     });
     container.add_controller(click);
 
@@ -98,7 +105,7 @@ const fn icon_for(percent: u32) -> &'static str {
 }
 
 
-fn find_device() -> Option<std::path::PathBuf> {
+fn find_device() -> Option<PathBuf> {
     std::fs::read_dir("/sys/class/backlight")
         .ok()?
         .filter_map(Result::ok)
@@ -122,9 +129,14 @@ fn read_percent(device: &std::path::Path) -> Option<u32> {
     Some((current * 100 + max / 2) / max)
 }
 
-fn brightnessctl(step: &str) {
+fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<u32>) {
     let step = step.to_string();
     thread::spawn(move || {
         let _ = Command::new("brightnessctl").args(["set", &step]).status();
+        if let Some(device) = &device &&
+            let Some(percent) = read_percent(device)
+        {
+            let _ = tx.send_blocking(percent);
+        }
     });
 }

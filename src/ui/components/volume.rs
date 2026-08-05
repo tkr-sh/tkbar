@@ -10,16 +10,12 @@ use {
         prelude::*,
     },
     gtk4 as gtk,
-    std::{
-        io::{BufRead, BufReader},
-        process::{Command, Stdio},
-        thread,
-    },
+    std::{process::Command, thread, time::Duration},
 };
 
+const SINK: &str = "@DEFAULT_AUDIO_SINK@";
 
-
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 struct VolState {
     percent: u32,
     muted: bool,
@@ -42,28 +38,25 @@ pub fn volume() -> GtkBox {
 
     let (tx, rx) = async_channel::unbounded::<VolState>();
 
+    let poll_tx = tx.clone();
     thread::spawn(move || {
-        if let Some(s) = query() {
-            let _ = tx.send_blocking(s);
-        }
-
-        let child = Command::new("pactl")
-            .arg("subscribe")
-            .stdout(Stdio::piped())
-            .spawn();
-
-        let Ok(mut child) = child else {
-            eprintln!("volume: failed to spawn `pactl subscribe`");
-            return;
-        };
-        let stdout = child.stdout.take().expect("piped stdout");
-
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if (line.contains(" sink ") || line.contains(" server ")) &&
-                let Some(s) = query()
-            {
-                let _ = tx.send_blocking(s);
+        let mut last: Option<VolState> = None;
+        let mut warned = false;
+        loop {
+            match query() {
+                Some(state) if last.as_ref() != Some(&state) => {
+                    last = Some(state.clone());
+                    if poll_tx.send_blocking(state).is_err() {
+                        return;
+                    }
+                },
+                None if !warned => {
+                    eprintln!("volume: waiting for `wpctl get-volume {SINK}` to succeed");
+                    warned = true;
+                },
+                Some(_) | None => {},
             }
+            thread::sleep(Duration::from_millis(500));
         }
     });
 
@@ -90,17 +83,19 @@ pub fn volume() -> GtkBox {
     ));
 
     let click = GestureClick::new();
-    click.connect_released(|_, _, _, _| {
-        pactl(&["set-sink-mute", "@DEFAULT_SINK@", "toggle"]);
+    let click_tx = tx.clone();
+    click.connect_released(move |_, _, _, _| {
+        wpctl(&["set-mute", SINK, "toggle"], click_tx.clone());
     });
     container.add_controller(click);
 
     let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
-    scroll.connect_scroll(|_, _dx, dy| {
+    let scroll_tx = tx.clone();
+    scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            pactl(&["set-sink-volume", "@DEFAULT_SINK@", "+3%"]);
+            wpctl(&["set-volume", SINK, "3%+"], scroll_tx.clone());
         } else {
-            pactl(&["set-sink-volume", "@DEFAULT_SINK@", "-3%"]);
+            wpctl(&["set-volume", SINK, "3%-"], scroll_tx.clone());
         }
         glib::Propagation::Stop
     });
@@ -123,31 +118,30 @@ const fn icon_for(state: &VolState) -> &'static str {
 }
 
 fn query() -> Option<VolState> {
-    let vol = Command::new("pactl")
-        .args(["get-sink-volume", "@DEFAULT_SINK@"])
-        .output()
-        .ok()?;
-    let mute = Command::new("pactl")
-        .args(["get-sink-mute", "@DEFAULT_SINK@"])
+    let out = Command::new("wpctl")
+        .args(["get-volume", SINK])
         .output()
         .ok()?;
 
-    // "Volume: front-left: 39321 /  60% / -13.31 dB, front-right: ..."
-    let vol_text = String::from_utf8_lossy(&vol.stdout);
-    let percent = vol_text.split('/').find_map(|part| {
-        part.trim()
-            .strip_suffix('%')
-            .and_then(|n| n.trim().parse::<u32>().ok())
-    })?;
-
-    let muted = String::from_utf8_lossy(&mute.stdout).contains("yes");
+    // "Volume: X.XX" or "Volume: X.XX [MUTED]"
+    let text = String::from_utf8_lossy(&out.stdout);
+    let muted = text.contains("[MUTED]");
+    let fraction: f64 = text.split_whitespace().nth(1)?.parse().ok()?;
+    #[allow(
+        clippy::as_conversions,
+        reason = "f64->u32 `as` saturates, which is exactly what we want for a volume fraction"
+    )]
+    let percent: u32 = (fraction * 100.0).round() as u32;
 
     Some(VolState { percent, muted })
 }
 
-fn pactl(args: &[&str]) {
+fn wpctl(args: &[&str], tx: async_channel::Sender<VolState>) {
     let args: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
     thread::spawn(move || {
-        let _ = Command::new("pactl").args(&args).status();
+        let _ = Command::new("wpctl").args(&args).status();
+        if let Some(state) = query() {
+            let _ = tx.send_blocking(state);
+        }
     });
 }

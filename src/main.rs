@@ -1,7 +1,7 @@
 use {
     gtk::{Application, glib, prelude::*},
     gtk4 as gtk,
-    project::{APP_ID, build_window, load_css},
+    tkbar::{APP_ID, build_window, load_css},
 };
 
 fn main() -> glib::ExitCode {
