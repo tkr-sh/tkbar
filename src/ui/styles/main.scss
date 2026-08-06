@@ -1,0 +1,151 @@
+@use 'sass:color';
+
+$bg: #392227EE !default;
+$fg: #fde !default;
+$accent-color: #ff7790 !default;
+
+
+$bgh: color.adjust($bg, $lightness: 5%);
+
+window {
+    background: transparent;
+}
+ 
+.bar {
+    background-color: color.adjust($bg, $lightness: -7%);
+    border-radius: 16px;
+    color: #e0e0e6;
+    padding: 8px 6px;
+    font-family: monospace;
+    margin: 8px 8px;
+
+    .logo {
+        font-size: 28px;
+        color: $fg;
+        background: linear-gradient(
+            color.adjust($accent-color, $lightness: 6%),
+            color.adjust($accent-color, $lightness: -6%)
+        );
+        min-height: 46px;
+        min-width: 46px;
+        margin: 0px;
+        padding: 0px;
+        border-radius: 12px;
+    }
+
+    .workspaces {
+        font-size: 20px;
+        color: $fg;
+        background: $bg;
+        margin: 0px;
+        border-radius: 12px;
+        padding: 8px 0px;
+
+        .workspace {
+            color: $bg;
+            font-weight: bold;
+            background: color.adjust($fg, $alpha: -0.25);
+            border-radius: 10px;
+            padding: 2px 0px;
+            transition: .3s;
+            font-size: 16px;
+            transition: 0.3s;
+
+            &:hover {
+                background: color.adjust($fg, $alpha: -0.15);
+            }
+        }
+
+        .workspace-inactive {
+            color: color.adjust($fg, $alpha: -0.5);
+            font-weight: normal;
+            background: transparent;
+            padding: 0px 0px;
+            transition: 0.3s;
+
+            &:hover {
+                background: color.adjust($fg, $alpha: -0.85);
+            }
+        }
+
+        .workspace-current {
+            color: color.adjust($fg, $alpha: 0.05);
+            font-weight: 900;
+            background: #f79;
+            min-height: 32px;
+            border-radius: 12px;
+            transition: 0.3s;
+        }
+    }
+
+    .volume, .brightness, .wifi, .battery {
+        background: $bg;
+        border-radius: 12px;
+        padding: 8px;
+        color: #f9a;
+        transition: .3s;
+
+        &:hover {
+            background-color: $bgh;
+        }
+
+        .icon {
+            font-size: 20px;
+            line-height: 18px;
+        }
+
+        .value {
+            font-size: 14px;
+        }
+    }
+
+    .wifi {
+        min-height: 32px;
+        min-width: 28px;
+        padding-right: 11px;
+        padding-left: 6px;
+        font-size: 20px;
+    }
+
+    .volume {
+        &.muted {
+            color: #fff8;
+        }
+    }
+
+    .battery {
+        &.charging {
+            background: linear-gradient($bg 30%, color.mix($bg, #9f88) 75%, #99ff8a88);
+        }
+
+        &.critical {
+            background: linear-gradient($bg 30%, color.mix($bg, #f458) 75%, #ff445688);
+        }
+    }
+
+    .brightness {
+        .icon {
+            margin-left: -6px;
+        }
+    }
+
+    .clock {
+        font-size: 18px;
+        font-weight: 900;
+        background: $bg;
+        border-radius: 12px;
+        padding: 8px;
+        line-height: 24px;
+    }
+
+    &.horizontal {
+        .workspaces {
+            padding: 0px 8px;
+
+            .workspace-current {
+                min-height: none !important;
+                padding: 2px 6px;
+            }
+        }
+    }
+}

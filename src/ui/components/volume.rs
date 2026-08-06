@@ -26,11 +26,11 @@ pub fn volume() -> GtkBox {
     container.add_css_class("volume");
 
     let icon = Label::new(Some("\u{f057f}"));
-    icon.add_css_class("volume-icon");
+    icon.add_css_class("icon");
     icon.set_halign(gtk::Align::Center);
 
     let value = Label::new(Some("--"));
-    value.add_css_class("volume-value");
+    value.add_css_class("value");
     value.set_halign(gtk::Align::Center);
 
     container.append(&icon);

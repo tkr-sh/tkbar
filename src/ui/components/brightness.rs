@@ -19,12 +19,12 @@ pub fn brightness() -> GtkBox {
     container.add_css_class("brightness");
 
     let icon = Label::new(Some("\u{f00df}"));
-    icon.add_css_class("brightness-icon");
+    icon.add_css_class("icon");
     icon.set_halign(gtk::Align::Center);
     icon.set_justify(gtk::Justification::Center);
 
     let value = Label::new(Some("--"));
-    value.add_css_class("brightness-value");
+    value.add_css_class("value");
     value.set_halign(gtk::Align::Center);
     value.set_justify(gtk::Justification::Center);
 

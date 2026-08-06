@@ -1,6 +1,6 @@
 use {
     crate::conf::CONFIG,
-    gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
+    gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4::{self as gtk},
     std::{
         fs,
@@ -20,11 +20,11 @@ pub fn battery() -> GtkBox {
     container.add_css_class("battery");
 
     let icon = Label::new(Some("󰁹"));
-    icon.add_css_class("battery-icon");
+    icon.add_css_class("icon");
     icon.set_halign(gtk::Align::Center);
 
     let value = Label::new(Some("--"));
-    value.add_css_class("battery-value");
+    value.add_css_class("value");
     value.set_halign(gtk::Align::Center);
 
     container.append(&icon);

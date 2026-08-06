@@ -39,7 +39,6 @@ fn load() -> Config {
 
 #[cfg(feature = "config")]
 fn load_from(path: Option<&std::path::Path>) -> Config {
-    eprint!("hey!");
     let Some(path) = path else {
         crate::log::warn(
             "config",

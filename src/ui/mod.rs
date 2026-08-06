@@ -14,9 +14,9 @@ const BAR_SIZE: i32 = 72;
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 pub enum BarPosition {
+    #[default]
     Left,
     Right,
-    #[default]
     Top,
     Bottom,
 }

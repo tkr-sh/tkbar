@@ -31,6 +31,7 @@
                     watchexec
                     cargo-nextest
                     cargo-machete
+                    dart-sass
 
                     # Nice utilities
                     fd

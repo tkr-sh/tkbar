@@ -16,9 +16,22 @@
     toml = { version = "1", optional = true }
 
 
+
 [features]
     config = ["dep:directories", "dep:serde", "dep:toml"]
     default = ["config"]
+
+    # Colors
+    black = []
+    blue = []
+    cyan = []
+    green = []
+    orange = []
+    pink = []
+    purple = []
+    red = []
+    white = []
+    yellow = []
 
 
 # <https://rust-lang.github.io/rust-clippy/master>

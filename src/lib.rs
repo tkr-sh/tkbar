@@ -18,3 +18,7 @@ pub fn load_css() {
         gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
     );
 }
+
+pub fn get_css() {}
+
+pub fn default_css() {}

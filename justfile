@@ -37,3 +37,6 @@ fix:
     cargo clippy --fix --allow-staged
     cargo fmt
     taplo fmt
+
+css:
+    nu ./scripts/css.nu
