@@ -1,4 +1,5 @@
 use {
+    crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4::{self as gtk},
     std::{
@@ -15,7 +16,7 @@ enum BatteryState {
     Present { percent: u32, charging: bool },
 }
 pub fn battery() -> GtkBox {
-    let container = GtkBox::new(Orientation::Vertical, 2);
+    let container = GtkBox::new(CONFIG.position.orientation(), 2);
     container.add_css_class("battery");
 
     let icon = Label::new(Some("󰁹"));

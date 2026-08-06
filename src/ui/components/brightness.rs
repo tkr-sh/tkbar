@@ -1,11 +1,11 @@
 use {
+    crate::conf::CONFIG,
     gtk::{
         Box as GtkBox,
         EventControllerScroll,
         EventControllerScrollFlags,
         GestureClick,
         Label,
-        Orientation,
         glib,
         prelude::*,
     },
@@ -15,7 +15,7 @@ use {
 
 
 pub fn brightness() -> GtkBox {
-    let container = GtkBox::new(Orientation::Vertical, 2);
+    let container = GtkBox::new(CONFIG.position.orientation(), 2);
     container.add_css_class("brightness");
 
     let icon = Label::new(Some("\u{f00df}"));

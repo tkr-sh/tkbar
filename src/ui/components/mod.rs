@@ -4,6 +4,11 @@ mod volume;
 mod wifi;
 mod workspaces;
 
+use {
+    crate::conf::CONFIG,
+    gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
+    gtk4 as gtk,
+};
 pub use {
     battery::battery,
     brightness::brightness,
@@ -11,11 +16,9 @@ pub use {
     wifi::wifi,
     workspaces::workspaces,
 };
-use {
-    gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
-    gtk4 as gtk,
-};
 
+#[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 pub enum Component {
     Logo(char),
     Workspaces,
@@ -48,8 +51,9 @@ impl Component {
 }
 
 pub fn spacer() -> GtkBox {
-    let spacer = GtkBox::new(Orientation::Vertical, 0);
+    let spacer = GtkBox::new(CONFIG.position.orientation(), 0);
     spacer.set_vexpand(true);
+    spacer.set_hexpand(true);
     spacer
 }
 
@@ -78,5 +82,14 @@ pub fn clock() -> Label {
 
 fn update_clock(label: &Label) {
     let now = chrono::Local::now();
-    label.set_text(&now.format("%H\n%M\n%S").to_string());
+    label.set_text(
+        &now.format(
+            if CONFIG.position.orientation() == Orientation::Horizontal {
+                "%H %M %S"
+            } else {
+                "%H\n%M\n%S"
+            },
+        )
+        .to_string(),
+    );
 }

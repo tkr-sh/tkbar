@@ -1,4 +1,5 @@
 use {
+    crate::conf::CONFIG,
     gtk::{Align, Box as GtkBox, Button, Orientation, glib, prelude::*},
     gtk4 as gtk,
     niri_ipc::{Action, Event, Request, Response, WorkspaceReferenceArg, socket::Socket},
@@ -14,7 +15,7 @@ struct NiriWs {
 }
 
 pub fn workspaces() -> GtkBox {
-    let container = GtkBox::new(Orientation::Vertical, 4);
+    let container = GtkBox::new(CONFIG.position.orientation(), 4);
     container.add_css_class("workspaces");
 
     let (tx, rx) = async_channel::unbounded::<Vec<NiriWs>>();

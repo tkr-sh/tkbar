@@ -936,6 +936,8 @@ dependencies = [
  "gtk4",
  "gtk4-layer-shell",
  "niri-ipc",
+ "serde",
+ "toml",
 ]
 
 [[package]]

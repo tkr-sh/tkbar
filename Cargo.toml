@@ -12,10 +12,12 @@
 
     # Config
     directories = { version = "6", optional = true }
+    serde = { version = "1", features = ["derive"], optional = true }
+    toml = { version = "1", optional = true }
 
 
 [features]
-    config = ["dep:directories"]
+    config = ["dep:directories", "dep:serde", "dep:toml"]
     default = ["config"]
 
 

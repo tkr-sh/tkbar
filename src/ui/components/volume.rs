@@ -1,11 +1,11 @@
 use {
+    crate::conf::CONFIG,
     gtk::{
         Box as GtkBox,
         EventControllerScroll,
         EventControllerScrollFlags,
         GestureClick,
         Label,
-        Orientation,
         glib,
         prelude::*,
     },
@@ -22,7 +22,7 @@ struct VolState {
 }
 
 pub fn volume() -> GtkBox {
-    let container = GtkBox::new(Orientation::Vertical, 2);
+    let container = GtkBox::new(CONFIG.position.orientation(), 2);
     container.add_css_class("volume");
 
     let icon = Label::new(Some("\u{f057f}"));
@@ -51,7 +51,7 @@ pub fn volume() -> GtkBox {
                     }
                 },
                 None if !warned => {
-                    eprintln!("volume: waiting for `wpctl get-volume {SINK}` to succeed");
+                    crate::log::warn("volume", "waiting for `wpctl get-volume` to succeed");
                     warned = true;
                 },
                 Some(_) | None => {},
@@ -123,8 +123,11 @@ fn query() -> Option<VolState> {
         .output()
         .ok()?;
 
-    // "Volume: X.XX" or "Volume: X.XX [MUTED]"
-    let text = String::from_utf8_lossy(&out.stdout);
+    parse_get_volume(&String::from_utf8_lossy(&out.stdout))
+}
+
+/// Parses `wpctl get-volume` output: `"Volume: X.XX"` or `"Volume: X.XX [MUTED]"`.
+fn parse_get_volume(text: &str) -> Option<VolState> {
     let muted = text.contains("[MUTED]");
     let fraction: f64 = text.split_whitespace().nth(1)?.parse().ok()?;
     #[allow(
@@ -144,4 +147,43 @@ fn wpctl(args: &[&str], tx: async_channel::Sender<VolState>) {
             let _ = tx.send_blocking(state);
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_plain_volume() {
+        assert_eq!(
+            parse_get_volume("Volume: 0.84"),
+            Some(VolState {
+                percent: 84,
+                muted: false
+            })
+        );
+    }
+
+    #[test]
+    fn parses_muted() {
+        assert_eq!(
+            parse_get_volume("Volume: 0.84 [MUTED]"),
+            Some(VolState {
+                percent: 84,
+                muted: true
+            })
+        );
+    }
+
+    #[test]
+    fn parses_boosted_volume() {
+        assert_eq!(parse_get_volume("Volume: 1.50").unwrap().percent, 150);
+    }
+
+    #[test]
+    fn rejects_garbage() {
+        assert_eq!(parse_get_volume(""), None);
+        assert_eq!(parse_get_volume("Volume: abc"), None);
+        assert_eq!(parse_get_volume("whatever"), None);
+    }
 }
