@@ -19,7 +19,7 @@
 
 [features]
     config = ["dep:directories", "dep:serde", "dep:toml"]
-    default = ["config"]
+    default = ["black", "config"]
 
     # Colors
     black = []

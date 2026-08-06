@@ -68,6 +68,8 @@ components = [
 
 ## Security
 
+A status bar is easy to overlook, but it runs unsandboxed with your full user privileges and no permission boundary: it can read files, spawn processes, and it never stops running, so anything it mishandles executes as *you*. Bars also tend to accumulate dependencies, and each one is more code running with those same privileges => a large dependency tree is a large attack surface. For a component that is always on screen and always parsing input, that is worth taking seriously.
+
 ### Threat model
 
 Trusted: the Linux kernel, your user account, the Wayland compositor, and everything installed on the system (libraries, fonts, the tools in `PATH`). If any of those is compromised, no userspace status bar can defend you. A malicious compositor can read your screen and input for *any* client.
@@ -84,7 +86,7 @@ The bar itself opens no sockets, speaks no network protocol, and never opens fil
 
 - **Safe Rust, no `unsafe`**, and no `unwrap`/`panic` on externally-influenced data: every parse is a fallible `parse().ok()?` chain. Malformed input makes a widget keep its previous state, never crash the bar.
 - **No network code at all.** No HTTP, no DNS, no listening sockets.
-- **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no webview. Even the CSS is compiled into the binary (`include_str!`) and cannot be influenced at runtime.
+- **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no webview. The base CSS is compiled into the binary (`include_str!`); the only runtime-loaded content is the optional `~/.config/tkbar/style.css` (behind the `config` feature), which is plain CSS data and cannot execute code.
 - **Untrusted strings stay inert.** The SSID is stripped of ANSI escape sequences before parsing and is only ever *displayed* (as a tooltip), never interpreted.
 - **Configuration is data-only.** TOML has no code execution, aliases, or external includes; parsing is strict and typed. An attacker who can write your config can change the layout, and nothing more.
 - **Pinned, auditable supply chain.** `Cargo.lock` and `flake.lock` pin every dependency; the Nix build is reproducible. `cargo tree` shows the whole picture.

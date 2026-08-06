@@ -7,7 +7,7 @@ let colors = {
     "black": {
         "bg": "#2e2e2eEE",
         "fg": "#eee",
-        "accent-color": "#aaa",
+        "accent-color": "#888",
     },
     "red": {
         "bg": "#392227EE",
