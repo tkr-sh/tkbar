@@ -1,6 +1,6 @@
 use {
     crate::conf::CONFIG,
-    gtk::{Align, Box as GtkBox, Button, Orientation, glib, prelude::*},
+    gtk::{Align, Box as GtkBox, Button, glib, prelude::*},
     gtk4 as gtk,
     niri_ipc::{Action, Event, Request, Response, WorkspaceReferenceArg, socket::Socket},
     std::thread,

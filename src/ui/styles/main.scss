@@ -71,7 +71,7 @@ window {
         .workspace-current {
             color: color.adjust($fg, $alpha: 0.05);
             font-weight: 900;
-            background: #f79;
+            background: $accent-color;
             min-height: 32px;
             border-radius: 12px;
             transition: 0.3s;
@@ -82,7 +82,7 @@ window {
         background: $bg;
         border-radius: 12px;
         padding: 8px;
-        color: #f9a;
+        color: color.adjust($accent-color, $lightness: 10%);
         transition: .3s;
 
         &:hover {
@@ -136,6 +136,7 @@ window {
         border-radius: 12px;
         padding: 8px;
         line-height: 24px;
+        color: $fg;
     }
 
     &.horizontal {
