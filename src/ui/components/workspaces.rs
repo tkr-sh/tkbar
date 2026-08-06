@@ -86,7 +86,6 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                         }
                     })
                     .collect();
-                let _ = tx.send_blocking(state.clone());
             },
             Event::WorkspaceActivated { id, focused } => {
                 for w in state.iter_mut() {
@@ -101,9 +100,9 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
 
         let new_state = (1..=WORKSPACE_COUNT).map(|idx| {
             state
-                .clone()
-                .into_iter()
+                .iter()
                 .find(|wks| wks.idx == idx)
+                .copied()
                 .unwrap_or_else(|| {
                     NiriWs {
                         id: u64::from(idx),
