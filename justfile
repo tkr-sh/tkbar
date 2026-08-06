@@ -16,7 +16,7 @@ nix-w:
 
 # Run
 [group: 'dev']
-run:
+run: css
     cargo run
 
 [group: 'dev']

@@ -98,9 +98,9 @@ pub fn brightness() -> GtkBox {
 const fn icon_for(percent: u32) -> &'static str {
     match percent {
         0..=1 => "",
-        2..=33 => "\u{f00de}",
-        34..=66 => "\u{f00df}",
-        _ => "\u{f00e0}",
+        2..=33 => "󰃞",
+        34..=66 => "󰃟",
+        _ => "󰃠",
     }
 }
 

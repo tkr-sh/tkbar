@@ -1,5 +1,6 @@
 use {
-    gtk::{Label, glib, prelude::*},
+    crate::conf::CONFIG,
+    gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4 as gtk,
     std::{fs, process::Command, thread, time::Duration},
 };
@@ -11,11 +12,16 @@ enum WifiState {
 }
 
 
-pub fn wifi() -> Label {
+pub fn wifi() -> GtkBox {
+    let container = GtkBox::new(CONFIG.position.orientation(), 2);
+    container.add_css_class("wifi");
+
     let icon = Label::new(Some("\u{f092d}"));
-    icon.add_css_class("wifi");
+    icon.add_css_class("icon");
     icon.set_halign(gtk::Align::Center);
     icon.set_justify(gtk::Justification::Center);
+
+    container.append(&icon);
 
     let (tx, rx) = async_channel::unbounded::<WifiState>();
 
@@ -38,8 +44,9 @@ pub fn wifi() -> Label {
         }
     });
 
-    // UI side.
     glib::spawn_future_local(glib::clone!(
+        #[weak]
+        container,
         #[weak]
         icon,
         #[upgrade_or_default]
@@ -48,19 +55,19 @@ pub fn wifi() -> Label {
                 icon.set_text(icon_for(&state));
                 match &state {
                     WifiState::Connected { ssid, signal: _ } => {
-                        icon.set_tooltip_text(Some(ssid));
-                        icon.remove_css_class("down");
+                        container.set_tooltip_text(Some(ssid));
+                        container.remove_css_class("down");
                     },
                     WifiState::Disconnected => {
-                        icon.set_tooltip_text(Some("disconnected"));
-                        icon.add_css_class("down");
+                        container.set_tooltip_text(Some("disconnected"));
+                        container.add_css_class("down");
                     },
                 }
             }
         }
     ));
 
-    icon
+    container
 }
 
 fn find_wireless_device() -> Option<String> {

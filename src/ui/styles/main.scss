@@ -99,17 +99,16 @@ window {
         }
     }
 
-    .wifi {
-        min-height: 32px;
-        min-width: 28px;
-        padding-right: 11px;
-        padding-left: 6px;
-        font-size: 20px;
-    }
-
     .volume {
         &.muted {
             color: #fff8;
+        }
+    }
+
+    .wifi {
+        .icon {
+            padding: 8px;
+            margin-left: -6px;
         }
     }
 
@@ -145,8 +144,17 @@ window {
 
             .workspace-current {
                 min-height: none !important;
-                padding: 2px 6px;
+                padding: 0px 6px;
             }
+        }
+
+        .value {
+            margin-left: 4px;
+        }
+
+        .brightness .icon {
+            margin-left:0px;
+            margin-right:4px;
         }
     }
 }
