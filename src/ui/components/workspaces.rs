@@ -44,9 +44,10 @@ pub fn workspaces() -> GtkBox {
                     let btn = Button::with_label(&ws.idx.to_string());
                     btn.add_css_class("workspace");
                     if ws.is_focused {
-                        btn.add_css_class("workspace-current");
-                    } else if !ws.is_active {
-                        btn.add_css_class("workspace-inactive");
+                        btn.add_css_class("current");
+                    }
+                    if !ws.is_active {
+                        btn.add_css_class("inactive");
                     }
                     btn.set_valign(Align::Center);
                     btn.set_halign(Align::Center);
@@ -92,6 +93,14 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
                     if focused {
                         w.is_focused = w.id == id;
                     }
+                }
+            },
+            Event::WorkspaceActiveWindowChanged {
+                workspace_id,
+                active_window_id,
+            } => {
+                if let Some(ws) = state.iter_mut().find(|ws| ws.id == workspace_id) {
+                    ws.is_active = active_window_id.is_some();
                 }
             },
             _ => {},

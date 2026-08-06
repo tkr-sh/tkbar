@@ -54,27 +54,32 @@ window {
             &:hover {
                 background: color.adjust($fg, $alpha: -0.15);
             }
-        }
 
-        .workspace-inactive {
-            color: color.adjust($fg, $alpha: -0.5);
-            font-weight: normal;
-            background: transparent;
-            padding: 0px 0px;
-            transition: 0.3s;
 
-            &:hover {
-                background: color.adjust($fg, $alpha: -0.85);
+            &.inactive {
+                color: color.adjust($fg, $alpha: -0.5);
+                font-weight: normal;
+                background: transparent;
+                padding: 0px 0px;
+                transition: 0.3s;
+
+                &:hover {
+                    background: color.adjust($fg, $alpha: -0.85);
+                }
             }
-        }
 
-        .workspace-current {
-            color: color.adjust($fg, $alpha: 0.05);
-            font-weight: 900;
-            background: $accent-color;
-            min-height: 32px;
-            border-radius: 12px;
-            transition: 0.3s;
+            &.current {
+                color: color.adjust($fg, $alpha: 0.05);
+                font-weight: 900;
+                background: $accent-color;
+                min-height: 32px;
+                border-radius: 12px;
+                transition: 0.3s;
+
+                &:hover {
+                    background: color.adjust($accent-color, $alpha: -0.1);
+                }
+            }
         }
     }
 
@@ -142,7 +147,7 @@ window {
         .workspaces {
             padding: 0px 8px;
 
-            .workspace-current {
+            .workspace.current {
                 min-height: none !important;
                 padding: 0px 6px;
             }
