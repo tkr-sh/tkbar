@@ -5,7 +5,6 @@ use {
     std::{
         fs,
         path::{Path, PathBuf},
-        thread,
         time::Duration,
     },
 };
@@ -15,6 +14,10 @@ enum BatteryState {
     NoBattery,
     Present { percent: u32, charging: bool },
 }
+
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
+const CRITICAL_PERCENT: u32 = 15;
+
 pub fn battery() -> GtkBox {
     let container = GtkBox::new(CONFIG.position.orientation(), 2);
     container.add_css_class("battery");
@@ -30,25 +33,12 @@ pub fn battery() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let (tx, rx) = async_channel::unbounded::<BatteryState>();
-
-    thread::spawn(move || {
-        let Some(device) = find_battery() else {
-            let _ = tx.send_blocking(BatteryState::NoBattery);
-            return;
-        };
-
-        let mut last: Option<BatteryState> = None;
-        loop {
-            let state = read_state(&device).unwrap_or(BatteryState::NoBattery);
-            if last.as_ref() != Some(&state) {
-                last = Some(state);
-                if tx.send_blocking(state).is_err() {
-                    return;
-                }
-            }
-            thread::sleep(Duration::from_millis(500));
-        }
+    let device = find_battery();
+    let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
+        Some(match &device {
+            Some(device) => read_state(device).unwrap_or(BatteryState::NoBattery),
+            None => BatteryState::NoBattery,
+        })
     });
 
     glib::spawn_future_local(glib::clone!(
@@ -75,7 +65,7 @@ pub fn battery() -> GtkBox {
                         } else {
                             container.remove_css_class("charging");
                         }
-                        if !charging && percent <= 15 {
+                        if !charging && percent <= CRITICAL_PERCENT {
                             container.add_css_class("critical");
                         } else {
                             container.remove_css_class("critical");

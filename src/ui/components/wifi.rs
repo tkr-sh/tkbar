@@ -2,7 +2,7 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4 as gtk,
-    std::{fs, process::Command, thread, time::Duration},
+    std::{fs, process::Command, time::Duration},
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -11,6 +11,7 @@ enum WifiState {
     Disconnected,
 }
 
+const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 pub fn wifi() -> GtkBox {
     let container = GtkBox::new(CONFIG.position.orientation(), 2);
@@ -23,25 +24,15 @@ pub fn wifi() -> GtkBox {
 
     container.append(&icon);
 
-    let (tx, rx) = async_channel::unbounded::<WifiState>();
+    let device = find_wireless_device();
+    if device.is_none() {
+        crate::log::warn("wifi", "no wireless interface under /sys/class/net");
+    }
 
-    thread::spawn(move || {
-        let Some(device) = find_wireless_device() else {
-            crate::log::warn("wifi", "no wireless interface under /sys/class/net");
-            return;
-        };
-
-        let mut last: Option<WifiState> = None;
-        loop {
-            let state = query(&device).unwrap_or(WifiState::Disconnected);
-            if last.as_ref() != Some(&state) {
-                last = Some(state.clone());
-                if tx.send_blocking(state).is_err() {
-                    return;
-                }
-            }
-            thread::sleep(Duration::from_secs(5));
-        }
+    let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
+        device
+            .as_ref()
+            .map(|device| query(device).unwrap_or(WifiState::Disconnected))
     });
 
     glib::spawn_future_local(glib::clone!(

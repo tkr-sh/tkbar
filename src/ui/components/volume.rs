@@ -14,8 +14,9 @@ use {
 };
 
 const SINK: &str = "@DEFAULT_AUDIO_SINK@";
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct VolState {
     percent: u32,
     muted: bool,
@@ -36,27 +37,17 @@ pub fn volume() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let (tx, rx) = async_channel::unbounded::<VolState>();
-
-    let poll_tx = tx.clone();
-    thread::spawn(move || {
-        let mut last: Option<VolState> = None;
-        let mut warned = false;
-        loop {
-            match query() {
-                Some(state) if last.as_ref() != Some(&state) => {
-                    last = Some(state.clone());
-                    if poll_tx.send_blocking(state).is_err() {
-                        return;
-                    }
-                },
-                None if !warned => {
+    let mut warned = false;
+    let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
+        match query() {
+            Some(state) => Some(state),
+            None => {
+                if !warned {
                     crate::log::warn("volume", "waiting for `wpctl get-volume` to succeed");
                     warned = true;
-                },
-                Some(_) | None => {},
-            }
-            thread::sleep(Duration::from_millis(500));
+                }
+                None
+            },
         }
     });
 

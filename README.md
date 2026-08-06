@@ -15,6 +15,8 @@ Configuration is optional and deliberately limited: a single TOML file can reord
 
 ## Dependencies
 
+The bar aims for a minimal dependency tree: every crate and library is code that runs with your full user privileges, so only what is strictly needed is pulled in. There is no logging framework (just `eprintln!`), and config parsing is feature-gated so it can be dropped entirely.
+
 ### Build-time
 
 | Dependency | Notes |

@@ -6,7 +6,9 @@ use {
     std::thread,
 };
 
-#[derive(Clone, Debug)]
+const WORKSPACE_COUNT: u8 = 10;
+
+#[derive(Clone, Copy, Debug)]
 struct NiriWs {
     id: u64,
     idx: u8,
@@ -97,7 +99,7 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
         }
 
 
-        let new_state = (1u8..=10u8).map(|idx| {
+        let new_state = (1..=WORKSPACE_COUNT).map(|idx| {
             state
                 .clone()
                 .into_iter()

@@ -8,6 +8,7 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
+    std::{thread, time::Duration},
 };
 pub use {
     battery::battery,
@@ -48,6 +49,33 @@ impl Component {
             Component::Clock => bar.append(&clock()),
         }
     }
+}
+
+pub(crate) fn spawn_poller<S, P>(
+    interval: Duration,
+    mut poll: P,
+) -> (async_channel::Sender<S>, async_channel::Receiver<S>)
+where
+    S: Clone + PartialEq + Send + 'static,
+    P: FnMut() -> Option<S> + Send + 'static,
+{
+    let (tx, rx) = async_channel::unbounded();
+    let poll_tx = tx.clone();
+    thread::spawn(move || {
+        let mut last: Option<S> = None;
+        loop {
+            if let Some(state) = poll() &&
+                last.as_ref() != Some(&state)
+            {
+                last = Some(state.clone());
+                if poll_tx.send_blocking(state).is_err() {
+                    return;
+                }
+            }
+            thread::sleep(interval);
+        }
+    });
+    (tx, rx)
 }
 
 pub fn spacer() -> GtkBox {

@@ -13,6 +13,7 @@ use {
     std::{path::PathBuf, process::Command, thread, time::Duration},
 };
 
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
 pub fn brightness() -> GtkBox {
     let container = GtkBox::new(CONFIG.position.orientation(), 2);
@@ -31,30 +32,15 @@ pub fn brightness() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let (tx, rx) = async_channel::unbounded::<u32>();
-
     let device = find_device();
     if device.is_none() {
-        eprintln!("brightness: no device under /sys/class/backlight");
+        crate::log::warn("brightness", "no device under /sys/class/backlight");
     }
 
-    if let Some(device) = device.clone() {
-        let poll_tx = tx.clone();
-        thread::spawn(move || {
-            let mut last: Option<u32> = None;
-            loop {
-                if let Some(percent) = read_percent(&device) &&
-                    last != Some(percent)
-                {
-                    last = Some(percent);
-                    if poll_tx.send_blocking(percent).is_err() {
-                        return;
-                    }
-                }
-                thread::sleep(Duration::from_millis(500));
-            }
-        });
-    }
+    let poll_device = device.clone();
+    let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
+        poll_device.as_deref().and_then(read_percent)
+    });
 
     // UI side.
     glib::spawn_future_local(glib::clone!(
