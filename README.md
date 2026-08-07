@@ -4,10 +4,45 @@
 
 </h1>
 
-
-<img src="./bar.png"/>
-
 A minimalist, hardened status bar.
+
+<p align="center">
+    <a href="https://github.com/tkr-sh/tkbar">
+        <img
+            src="https://img.shields.io/github/v/release/tkr-sh/tkbar?colorA=363a4f&colorB=a6da95&style=for-the-badge&logo=github&logoColor=cad3f5"
+            alt="github release"
+        />
+    </a>
+    <a href="https://github.com/tkr-sh/tkbar/actions">
+        <img
+            src="https://img.shields.io/github/actions/workflow/status/tkr-sh/tkbar/ci?colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=rust&logoColor=cad3f5"
+            alt="crates.io downloads"
+        />
+    </a>
+    <!--
+    <a href="https://crates.io/crates/tkbar">
+        <img
+            src="https://img.shields.io/crates/d/tkbar.svg?colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=rust&logoColor=cad3f5"
+            alt="crates.io downloads"
+        />
+    </a>
+    -->
+    <a href="https://github.com/tkr-sh/tkbar">
+        <img
+            src="https://img.shields.io/github/stars/tkr-sh/tkbar?colorA=363a4f&colorB=eed49f&style=for-the-badge&logo=star"
+            alt="stars"
+        />
+    </a>
+</p>
+
+
+<div style="display: flex; flex-direction: row">
+
+<img src="./ressources/bar-red.png"/>
+<img src="./ressources/bar-orange.png"/>
+
+</div>
+
 
 I was personally unsatisfied with the state of wayland bars and shells (bloat, huge attack surface, not enough config options, not handling some protocols, etc.) so I just wrote a minimal thing that worked for me.
 
