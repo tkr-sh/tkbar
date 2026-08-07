@@ -1,0 +1,30 @@
+name: ci
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+jobs:
+    check:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: dtolnay/rust-toolchain@stable
+
+            - uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: ci
+
+            - name: Build the pipeline
+              run: cargo build --release
+              working-directory: ci
+
+            - name: Run the pipeline
+              uses: dagger/dagger-for-github@v8.4.1
+              with:
+                  verb: run
+                  args: ci/target/release/tkbar-ci
+                  version: v0.21.8
+                  enable-github-summary: 'true'

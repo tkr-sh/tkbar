@@ -6,9 +6,11 @@
         systems.url = "github:nix-systems/default";
         rust-overlay.url = "github:oxalica/rust-overlay";
         flake-utils.url  = "github:numtide/flake-utils";
+        dagger.url = "github:dagger/nix";
+        dagger.inputs.nixpkgs.follows = "nixpkgs";
     };
 
-    outputs = { self, nixpkgs, flake-utils, rust-overlay, ... }:
+    outputs = { self, nixpkgs, flake-utils, rust-overlay, dagger, ... }:
         flake-utils.lib.eachDefaultSystem (system:
         let
             overlays = [ (import rust-overlay) ];
@@ -32,6 +34,7 @@
                     cargo-nextest
                     cargo-machete
                     dart-sass
+                    dagger.packages.${system}.dagger
 
                     # Nice utilities
                     fd
@@ -59,6 +62,8 @@
                     export XDG_DATA_DIRS=${gsettings-desktop-schemas}/share/gsettings-schemas/${gsettings-desktop-schemas.name}:${gtk4}/share/gsettings-schemas/${gtk4.name}:$XDG_DATA_DIRS
                 '';
             };
+
+            packages.dagger = dagger.packages.${system}.dagger;
 
             packages.default = rustPlatform.buildRustPackage {
                 pname = "tkbar";
