@@ -4,8 +4,6 @@
 
 </h1>
 
-A minimalist, hardened status bar.
-
 <p align="center">
     <a href="https://github.com/tkr-sh/tkbar">
         <img
@@ -35,6 +33,11 @@ A minimalist, hardened status bar.
     </a>
 </p>
 
+<p style="text-align: center">
+
+A minimalist, hardened status bar.
+
+</p>
 
 <div style="display: flex; flex-direction: row; justify-content: center; align-items: center;">
 

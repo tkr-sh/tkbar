@@ -12,10 +12,10 @@ const NIX_CONF: &str = "experimental-features = nix-command flakes\nsandbox = fa
 // the justfile.
 const STEPS: &[&str] = &[
     "css",
-    "fmt-check",
-    "cargo-check",
-    "clippy",
-    "test",
+    "ci-fmt",
+    "ci-cargo",
+    "ci-clippy",
+    "ci-test",
 ];
 
 fn nix_develop(cmd: &[&str]) -> Vec<String> {

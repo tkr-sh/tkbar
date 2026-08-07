@@ -30,26 +30,22 @@ css:
 
 # --- CI checks (non-destructive, --locked) ---
 
-[group: 'check']
-fmt-check:
+[group: 'ci']
+ci-fmt:
     cargo fmt --check
     taplo fmt --check
 
-[group: 'check']
-cargo-check:
+[group: 'ci']
+ci-check:
     cargo check --locked
 
-[group: 'check']
-clippy:
+[group: 'ci']
+ci-clippy:
     cargo clippy --locked
 
-[group: 'check']
-test:
+[group: 'ci']
+ci-test:
     cargo nextest run
-
-# Run all CI checks
-[group: 'check']
-ci: css fmt-check cargo-check clippy test
 
 # Check + auto-format (local convenience)
 [group: 'check']
