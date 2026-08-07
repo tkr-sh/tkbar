@@ -28,3 +28,4 @@ jobs:
                   args: ci/target/release/tkbar-ci
                   version: v0.21.8
                   enable-github-summary: 'true'
+                  cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
