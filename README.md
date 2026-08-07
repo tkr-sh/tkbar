@@ -40,6 +40,12 @@ A minimalist, hardened status bar.
 
 <img src="./ressources/bar-red.png"/>
 <img src="./ressources/bar-orange.png"/>
+<img src="./ressources/bar-yellow.png"/>
+<img src="./ressources/bar-green.png"/>
+<img src="./ressources/bar-cyan.png"/>
+<img src="./ressources/bar-blue.png"/>
+<img src="./ressources/bar-purple.png"/>
+<img src="./ressources/bar-black.png"/>
 
 </div>
 
