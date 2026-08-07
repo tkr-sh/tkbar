@@ -33,13 +33,13 @@
     </a>
 </p>
 
-<p style="text-align: center">
+<span style="text-align: center" align="center">
 
 A minimalist, hardened status bar.
 
-</p>
+</span>
 
-<div style="display: flex; flex-direction: row; justify-content: center; align-items: center;">
+<div style="display: flex; flex-direction: row; justify-content: center; align-items: center;" align="center">
 
 <img src="./ressources/bar-red.png"/>
 <img src="./ressources/bar-orange.png"/>
