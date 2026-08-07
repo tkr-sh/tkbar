@@ -36,7 +36,7 @@ A minimalist, hardened status bar.
 </p>
 
 
-<div style="display: flex; flex-direction: row">
+<div style="display: flex; flex-direction: row; justify-content: center; align-items: center;">
 
 <img src="./ressources/bar-red.png"/>
 <img src="./ressources/bar-orange.png"/>
