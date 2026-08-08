@@ -12,7 +12,7 @@ pub fn load_css() {
     let display = gtk::gdk::Display::default().expect("Could not get default display");
 
     let provider = CssProvider::new();
-    provider.load_from_string(theme_css());
+    provider.load_from_string(THEME_CSS);
     gtk::style_context_add_provider_for_display(
         &display,
         &provider,
@@ -47,31 +47,33 @@ fn load_custom_css(display: &gtk::gdk::Display) {
     );
 }
 
-const fn theme_css() -> &'static str {
-    if cfg!(feature = "black") {
-        include_str!("ui/styles/black.css")
-    } else if cfg!(feature = "blue") {
-        include_str!("ui/styles/blue.css")
-    } else if cfg!(feature = "cyan") {
-        include_str!("ui/styles/cyan.css")
-    } else if cfg!(feature = "green") {
-        include_str!("ui/styles/green.css")
-    } else if cfg!(feature = "orange") {
-        include_str!("ui/styles/orange.css")
-    } else if cfg!(feature = "pink") {
-        include_str!("ui/styles/pink.css")
-    } else if cfg!(feature = "purple") {
-        include_str!("ui/styles/purple.css")
-    } else if cfg!(feature = "red") {
-        include_str!("ui/styles/red.css")
-    } else if cfg!(feature = "white") {
-        include_str!("ui/styles/white.css")
-    } else if cfg!(feature = "yellow") {
-        include_str!("ui/styles/yellow.css")
-    } else {
-        include_str!("ui/styles/red.css")
-    }
-}
+/// Exactly one color feature must be enabled; it selects the compiled-in base
+/// stylesheet. Using `#[cfg]` (rather than runtime `cfg!`) means only the
+/// selected stylesheet is `include_str!`-ed into the binary — the other nine are
+/// not linked at all. `color_feature_count` + the const assert below enforce the
+/// "exactly one" rule with a clear message; without it, zero colors would just
+/// surface as a "cannot find `THEME_CSS`" error and two as a duplicate
+/// definition.
+#[cfg(feature = "black")]
+const THEME_CSS: &str = include_str!("ui/styles/black.css");
+#[cfg(feature = "blue")]
+const THEME_CSS: &str = include_str!("ui/styles/blue.css");
+#[cfg(feature = "cyan")]
+const THEME_CSS: &str = include_str!("ui/styles/cyan.css");
+#[cfg(feature = "green")]
+const THEME_CSS: &str = include_str!("ui/styles/green.css");
+#[cfg(feature = "orange")]
+const THEME_CSS: &str = include_str!("ui/styles/orange.css");
+#[cfg(feature = "pink")]
+const THEME_CSS: &str = include_str!("ui/styles/pink.css");
+#[cfg(feature = "purple")]
+const THEME_CSS: &str = include_str!("ui/styles/purple.css");
+#[cfg(feature = "red")]
+const THEME_CSS: &str = include_str!("ui/styles/red.css");
+#[cfg(feature = "white")]
+const THEME_CSS: &str = include_str!("ui/styles/white.css");
+#[cfg(feature = "yellow")]
+const THEME_CSS: &str = include_str!("ui/styles/yellow.css");
 
 const fn color_feature_count() -> usize {
     let mut n = 0;
