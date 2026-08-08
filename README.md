@@ -41,14 +41,14 @@ A minimalist, hardened status bar.
 
 <div style="display: flex; flex-direction: row; justify-content: center; align-items: center;" align="center">
 
-<img src="./ressources/bar-red.png"/>
-<img src="./ressources/bar-orange.png"/>
-<img src="./ressources/bar-yellow.png"/>
-<img src="./ressources/bar-green.png"/>
-<img src="./ressources/bar-cyan.png"/>
-<img src="./ressources/bar-blue.png"/>
-<img src="./ressources/bar-purple.png"/>
-<img src="./ressources/bar-black.png"/>
+<img src="./resources/bar-red.png"/>
+<img src="./resources/bar-orange.png"/>
+<img src="./resources/bar-yellow.png"/>
+<img src="./resources/bar-green.png"/>
+<img src="./resources/bar-cyan.png"/>
+<img src="./resources/bar-blue.png"/>
+<img src="./resources/bar-purple.png"/>
+<img src="./resources/bar-black.png"/>
 
 </div>
 
