@@ -107,6 +107,11 @@ window {
     .volume {
         &.muted {
             color: #fff8;
+
+            .value {
+                font-size: 12px;
+                line-height: 17px;
+            }
         }
     }
 
