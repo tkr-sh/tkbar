@@ -5,10 +5,16 @@ use {
 };
 
 fn main() -> glib::ExitCode {
+    disable_image_loaders();
+
     let app = Application::builder().application_id(APP_ID).build();
 
     app.connect_startup(|_| load_css());
     app.connect_activate(build_window);
 
     app.run()
+}
+
+fn disable_image_loaders() {
+    let _ = glib::setenv("GDK_PIXBUF_MODULE_FILE", "/dev/null", true);
 }

@@ -50,9 +50,13 @@ These are structural, compile-time or design constraints, not runtime checks:
   the bar. `panic = "abort"` is set in the release profile.
 - **No network code.** No HTTP, no DNS, no listening sockets.
 - **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no
-  webview. The base CSS is compiled into the binary (`include_str!`); the only
-  runtime-loaded content is the optional `~/.config/tkbar/style.css` (behind
-  the `config` feature), which is plain CSS data and cannot execute code.
+  webview. GTK's image-loading machinery is neutered: at startup the bar points
+  `GDK_PIXBUF_MODULE_FILE` at an empty loader cache, so gdk-pixbuf loads no
+  image parser modules (SVG, TIFF, ...), and the Nix package wires the same
+  empty cache into the wrapper. The base CSS is compiled into the binary
+  (`include_str!`); the only runtime-loaded content is the optional
+  `~/.config/tkbar/style.css` (behind the `config` feature), which is plain
+  CSS data and cannot execute code.
 - **ANSI-stripping of the SSID.** The SSID is stripped of ANSI escape sequences
   before parsing and only ever *displayed* as a tooltip, never interpreted.
 - **Strict typed config.** TOML has no code execution, aliases, or external
@@ -61,6 +65,10 @@ These are structural, compile-time or design constraints, not runtime checks:
 - **Pinned, reproducible supply chain.** `Cargo.lock` and `flake.lock` pin
   every dependency; the Nix build is reproducible. `cargo tree` shows the whole
   picture.
+- **Stable compiler for artifacts.** Release builds use the stable Rust
+  toolchain; nightly is confined to the devshell for `rustfmt`/`clippy`, so
+  shipped binaries are produced by the well-tested stable compiler, not a
+  moving nightly.
 - **No privileges.** Runs as your user, no capabilities, no secrets. Brightness
   writes go through kernel/udev permission checks (`video` group), not through
   the bar.
@@ -71,7 +79,9 @@ The README details this; the short version:
 
 - The **GTK stack** (GTK4, Pango, FreeType, Cairo) is by far the largest attack
   surface. Mitigation: fonts come from already-trusted system fontconfig, and
-  the bar loads no images or remote content. Keep your system GTK updated.
+  the bar loads no images or remote content — gdk-pixbuf's image loader modules
+  are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → empty cache), so no image
+  parser code runs. Keep your system GTK updated.
 - **`PATH` hijacking** of the spawned `wpctl`, `brightnessctl`, and `iwctl`
   would give code execution. Mitigated in the Nix package (pinned wrapper
   `PATH`); elsewhere, keep your `PATH` sane.

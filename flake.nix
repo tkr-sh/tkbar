@@ -80,6 +80,20 @@
                     buildNoDefaultFeatures = true;
                     buildFeatures = [ color ] ++ pkgs.lib.optional withConfig "config";
 
+                    # The bar renders icons from font glyphs and never loads
+                    # images. Point gdk-pixbuf at an empty loader cache so
+                    # wrapGAppsHook4 does not wire in image loader modules
+                    # (librsvg's SVG/XML parser otherwise ends up in the
+                    # runtime closure and dlopened by GTK).
+                    postInstall = ''
+                        mkdir -p $out/lib/gdk-pixbuf-2.0/2.10.0
+                        printf '%s\n' \
+                            '# GdkPixbuf Image Loader Modules file' \
+                            '# tkbar loads no images: keep every loader module unregistered.' \
+                            > $out/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+                        export GDK_PIXBUF_MODULE_FILE=$out/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+                    '';
+
                     nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
                     buildInputs = with pkgs; [
                         gtk4

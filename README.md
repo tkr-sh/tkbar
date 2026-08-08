@@ -65,7 +65,7 @@ The bar aims for a minimal dependency tree: every crate and library is code that
 
 | Dependency | Notes |
 | --- | --- |
-| Rust (edition 2024) | nightly toolchain pinned via the flake |
+| Rust (edition 2024) | stable toolchain for builds; nightly only in the devshell for `rustfmt`/`clippy` |
 | GTK4 >= 4.12 | C library, resolved through `pkg-config` |
 | gtk4-layer-shell >= 1.0 | C library implementing the layer-shell protocol |
 | glib | comes with GTK4 |
