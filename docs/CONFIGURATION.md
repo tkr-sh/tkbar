@@ -1,0 +1,121 @@
+# Configuration
+
+Configuration is optional and deliberately limited. It lives behind the
+`config` Cargo feature; without it, the bar always uses the hardcoded default
+and no TOML parser is linked at all.
+
+## The TOML config file
+
+With the `config` feature, the bar reads
+`$XDG_CONFIG_HOME/tkbar/config.toml` (usually
+`~/.config/tkbar/config.toml`). Parsing is handled in
+[`src/conf.rs`](../src/conf.rs).
+
+### Fields
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `position` | `left` \| `right` \| `top` \| `bottom` | `left` | `left`/`right` give a vertical bar anchored to the top and bottom edges; `top`/`bottom` give a horizontal bar anchored to the left and right edges. |
+| `bar_size_px` | `usize` | `72` | Bar thickness — width for a vertical bar, height for a horizontal one. |
+| `components` | list | *(see below)* | Ordered list of widgets to render. |
+
+### `components`
+
+Each entry is either an untagged string for a built-in component, or an inline
+table of the form `{ logo = "..." }` for the logo glyph.
+
+Built-in string names:
+
+- `workspaces`
+- `spacer`
+- `battery`
+- `wifi`
+- `brightness`
+- `volume`
+- `clock`
+
+Inline table:
+
+- `{ logo = "\u{e0003}" }` — the logo glyph (a single character).
+
+The `Component` enum is defined in
+[`src/ui/components/mod.rs`](../src/ui/components/mod.rs).
+
+### Full example
+
+```toml
+position = "left"
+bar_size_px = 72
+components = [
+    { logo = "󱄅" },
+    "workspaces",
+    "spacer",
+    "battery",
+    "wifi",
+    "brightness",
+    "volume",
+    "clock",
+]
+```
+
+### Strictness
+
+- **Unknown keys, unknown component names, and unknown positions are
+  rejected** (`deny_unknown_fields` in `src/conf.rs`). A misspelling is a hard
+  error, not a silent no-op.
+- **A missing file** falls back to the hardcoded default.
+- **An invalid file is a hard error**: the bar refuses to start and prints the
+  parse error with line and column. Silently falling back would hide typos.
+
+The config is stored in a global `CONFIG: LazyLock<Config>` (`src/conf.rs`) and
+read by widgets through `CONFIG.position.orientation()` and friends.
+
+## CSS overloading
+
+Each color feature selects a compiled-in base stylesheet (`THEME_CSS` in
+[`src/lib.rs`](../src/lib.rs), embedded with `include_str!`). With the `config`
+feature, an additional user stylesheet at `~/.config/tkbar/style.css` is loaded
+at `STYLE_PROVIDER_PRIORITY_USER` and overrides the base.
+
+Precedence:
+
+```
+user stylesheet (STYLE_PROVIDER_PRIORITY_USER)  >  built-in base (STYLE_PROVIDER_PRIORITY_APPLICATION)
+```
+
+The user CSS is **plain, inert data.** It is only ever parsed as stylesheet
+text and cannot execute code; see the README's security notes. A missing user
+stylesheet is ignored; an unreadable one is logged as a warning and skipped.
+
+## Feature opt-in/out via Nix
+
+The flake's `packages.default` is `makeOverridable` with `color` and
+`withConfig` parameters (see [`flake.nix`](../flake.nix)). A consumer flake
+selects the compiled-in theme and whether the optional TOML/CSS config is
+enabled — no forking required:
+
+```nix
+tkbar.packages.${system}.default.override {
+  color = "purple";     # one of: black blue cyan green orange pink purple red white yellow
+  withConfig = false;   # set false to drop the optional TOML/CSS config
+}
+```
+
+- `color` selects the compiled-in base theme (exactly one of the ten).
+- `withConfig` toggles the optional `config` feature.
+
+The plain cargo equivalent is:
+
+```sh
+cargo build --no-default-features --features purple,config
+```
+
+## Adding a theme
+
+Ten themes are generated from a single SCSS source,
+[`src/ui/styles/main.scss`](../src/ui/styles/main.scss), using
+[`scripts/css.nu`](../scripts/css.nu) (which shells out to dart-sass). Run
+`just css` to regenerate the compiled `src/ui/styles/<color>.css` files. To add
+a color theme, add a palette entry to `scripts/css.nu`, regenerate the CSS, and
+register the new `#[cfg]` feature in `src/lib.rs` (both the theme block and
+`color_feature_count()`).
