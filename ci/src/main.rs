@@ -13,7 +13,7 @@ const NIX_CONF: &str = "experimental-features = nix-command flakes\nsandbox = fa
 const STEPS: &[&str] = &[
     "css",
     "ci-fmt",
-    "ci-cargo",
+    "ci-check",
     "ci-clippy",
     "ci-test",
 ];
