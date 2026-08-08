@@ -65,33 +65,42 @@
 
             packages.dagger = dagger.packages.${system}.dagger;
 
-            packages.default = rustPlatform.buildRustPackage {
-                pname = "tkbar";
-                version = "0.0.1";
-                src = ./.;
-                cargoLock.lockFile = ./Cargo.lock;
+            # tkbar.packages.${system}.default.override {
+            #   color = "purple";     # one of: black blue cyan green orange pink purple red white yellow
+            #   withConfig = false;   # set false to drop the optional TOML/CSS config
+            # }
+            packages.default = pkgs.lib.makeOverridable
+                ({ color ? "black", withConfig ? true }: rustPlatform.buildRustPackage {
+                    pname = "tkbar";
+                    version = "0.0.1";
+                    src = ./.;
+                    cargoLock.lockFile = ./Cargo.lock;
 
+                    buildNoDefaultFeatures = true;
+                    buildFeatures = [ color ] ++ pkgs.lib.optional withConfig "config";
 
-                nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
-                buildInputs = with pkgs; [
-                    gtk4
-                    gtk4-layer-shell
-                    glib
-                    gsettings-desktop-schemas
-                ];
+                    nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
+                    buildInputs = with pkgs; [
+                        gtk4
+                        gtk4-layer-shell
+                        glib
+                        gsettings-desktop-schemas
+                    ];
 
-                # Make the tools the bar shells out to resolvable at runtime.
-                postFixup = ''
-                    wrapProgram $out/bin/tkbar \
-                      --prefix PATH : ${
-                          pkgs.lib.makeBinPath [
-                              pkgs.brightnessctl
-                              pkgs.wireplumber
-                              pkgs.iwd
-                          ]
-                      }
-                '';
-            };
+                    # Make the tools the bar shells out to resolvable at runtime.
+                    postFixup = ''
+                        wrapProgram $out/bin/tkbar \
+                          --prefix PATH : ${
+                              pkgs.lib.makeBinPath [
+                                  pkgs.brightnessctl
+                                  pkgs.wireplumber
+                                  pkgs.iwd
+                              ]
+                          }
+                    '';
+                })
+                {};
+
 
             apps.default = {
                 type = "app";
