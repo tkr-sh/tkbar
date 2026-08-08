@@ -18,9 +18,9 @@ const STEPS: &[&str] = &[
     "ci-test",
 ];
 
-fn nix_develop(cmd: &[&str]) -> Vec<String> {
-    let mut args: Vec<String> = vec!["nix".into(), "develop".into(), "--command".into()];
-    args.extend(cmd.iter().map(|s| (*s).to_string()));
+fn nix_develop<'a>(cmd: &'a [&'a str]) -> Vec<&'a str> {
+    let mut args: Vec<&str> = vec!["nix", "develop", "--command"];
+    args.extend(cmd);
     args
 }
 
@@ -52,6 +52,7 @@ async fn run() -> eyre::Result<()> {
                 .with_directory("/src", src)
                 .with_workdir("/src")
                 .with_mounted_cache("/src/target", dag.cache_volume("tkbar-cargo-target"));
+            env = env.with_exec(nix_develop(&[""])).sync().await?;
 
             for recipe in STEPS {
                 env = env.with_exec(nix_develop(&["just", recipe])).sync().await?;
