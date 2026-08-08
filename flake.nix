@@ -17,10 +17,11 @@
             pkgs = import nixpkgs {
                 inherit system overlays;
             };
-            rustToolchain = pkgs.rust-bin.nightly.latest.default;
+            # Nightly is only needed for the dev shell (advanced rustfmt/clippy);
+            # release artifacts are built with the stable toolchain.
             rustPlatform = pkgs.makeRustPlatform {
-                cargo = rustToolchain;
-                rustc = rustToolchain;
+                cargo = pkgs.rust-bin.stable.latest.default;
+                rustc = pkgs.rust-bin.stable.latest.default;
             };
         in
         {
