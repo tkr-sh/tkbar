@@ -13,6 +13,13 @@ const BAR_SIZE: i32 = 72;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
+#[cfg_attr(
+    not(feature = "config"),
+    allow(
+        dead_code,
+        reason = "non-default positions are only reachable through the config feature"
+    )
+)]
 pub enum BarPosition {
     #[default]
     Left,

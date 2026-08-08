@@ -9,6 +9,13 @@ pub(crate) fn warn(component: &str, message: &str) {
     eprintln!("tkbar: warning: {component}: {message}");
 }
 
+#[cfg_attr(
+    not(feature = "config"),
+    allow(
+        dead_code,
+        reason = "the only error path aborts on a malformed config file"
+    )
+)]
 pub(crate) fn error(component: &str, message: &str) {
     eprintln!("tkbar: error: {component}: {message}");
 }

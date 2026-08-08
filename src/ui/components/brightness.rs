@@ -15,6 +15,12 @@ use {
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum BrightnessState {
+    NoDevice,
+    Present(u32),
+}
+
 pub fn brightness() -> GtkBox {
     let container = GtkBox::new(CONFIG.position.orientation(), 2);
     container.add_css_class("brightness");
@@ -36,23 +42,36 @@ pub fn brightness() -> GtkBox {
     if device.is_none() {
         crate::log::warn("brightness", "no device under /sys/class/backlight");
     }
+    container.set_visible(device.is_some());
 
     let poll_device = device.clone();
     let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        poll_device.as_deref().and_then(read_percent)
+        Some(match poll_device.as_deref().and_then(read_percent) {
+            Some(percent) => BrightnessState::Present(percent),
+            None => BrightnessState::NoDevice,
+        })
     });
 
-    // UI side.
     glib::spawn_future_local(glib::clone!(
+        #[weak]
+        container,
         #[weak]
         icon,
         #[weak]
         value,
         #[upgrade_or_default]
         async move {
-            while let Ok(percent) = rx.recv().await {
-                icon.set_text(icon_for(percent));
-                value.set_text(&percent.to_string());
+            while let Ok(state) = rx.recv().await {
+                match state {
+                    BrightnessState::NoDevice => {
+                        container.set_visible(false);
+                    },
+                    BrightnessState::Present(percent) => {
+                        container.set_visible(true);
+                        icon.set_text(icon_for(percent));
+                        value.set_text(&percent.to_string());
+                    },
+                }
             }
         }
     ));
@@ -92,11 +111,22 @@ const fn icon_for(percent: u32) -> &'static str {
 
 
 fn find_device() -> Option<PathBuf> {
-    std::fs::read_dir("/sys/class/backlight")
+    let mut devices: Vec<(u32, PathBuf)> = std::fs::read_dir("/sys/class/backlight")
         .ok()?
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .next()
+        .filter_map(|p| {
+            let max = std::fs::read_to_string(p.join("max_brightness"))
+                .ok()?
+                .trim()
+                .parse::<u32>()
+                .ok()?;
+            Some((max, p))
+        })
+        .collect();
+
+    devices.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.as_path().cmp(b.1.as_path())));
+    devices.into_iter().next().map(|(_, p)| p)
 }
 
 fn read_percent(device: &std::path::Path) -> Option<u32> {
@@ -115,14 +145,14 @@ fn read_percent(device: &std::path::Path) -> Option<u32> {
     Some((current * 100 + max / 2) / max)
 }
 
-fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<u32>) {
+fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<BrightnessState>) {
     let step = step.to_string();
     thread::spawn(move || {
         let _ = Command::new("brightnessctl").args(["set", &step]).status();
         if let Some(device) = &device &&
             let Some(percent) = read_percent(device)
         {
-            let _ = tx.send_blocking(percent);
+            let _ = tx.send_blocking(BrightnessState::Present(percent));
         }
     });
 }

@@ -59,8 +59,4 @@ $colors
         $bg: ($v.bg),
         $accent-color: ($v.accent-color),
     \)" | sass --stdin --style=compressed --no-source-map $"./src/ui/styles/($k).css"
-#$k
 }
-
-# | values
-# | each { $in.1 }
