@@ -24,7 +24,7 @@ pub fn workspaces() -> GtkBox {
 
     thread::spawn(move || {
         if let Err(e) = event_loop(&tx) {
-            eprintln!("niri IPC error: {e}");
+            crate::log::warn("workspaces", &format!("niri IPC error: {e}"));
         }
     });
 
@@ -67,7 +67,10 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
     let mut socket = Socket::connect()?;
     let reply = socket.send(Request::EventStream)?;
     if !matches!(reply, Ok(Response::Handled)) {
-        eprintln!("niri: unexpected reply to EventStream: {reply:?}");
+        crate::log::warn(
+            "workspaces",
+            &format!("unexpected reply to EventStream: {reply:?}"),
+        );
     }
     let mut read_event = socket.read_events();
 
@@ -128,10 +131,17 @@ fn event_loop(tx: &async_channel::Sender<Vec<NiriWs>>) -> std::io::Result<()> {
 
 fn focus_workspace(id: u64) {
     thread::spawn(move || {
-        if let Ok(mut socket) = Socket::connect() {
-            let _ = socket.send(Request::Action(Action::FocusWorkspace {
-                reference: WorkspaceReferenceArg::Id(id),
-            }));
+        let mut socket = match Socket::connect() {
+            Ok(socket) => socket,
+            Err(e) => {
+                crate::log::warn("workspaces", &format!("could not connect to niri IPC: {e}"));
+                return;
+            },
+        };
+        if let Err(e) = socket.send(Request::Action(Action::FocusWorkspace {
+            reference: WorkspaceReferenceArg::Id(id),
+        })) {
+            crate::log::warn("workspaces", &format!("failed to focus workspace: {e}"));
         }
     });
 }

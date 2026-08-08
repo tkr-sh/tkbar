@@ -29,8 +29,13 @@ fn load_custom_css(display: &gtk::gdk::Display) {
         return;
     };
     let path = base.config_dir().join("tkbar").join("style.css");
-    let Ok(css) = std::fs::read_to_string(path) else {
-        return;
+    let css = match std::fs::read_to_string(&path) {
+        Ok(css) => css,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return,
+        Err(err) => {
+            crate::log::warn("config", &format!("cannot read {}: {err}", path.display()));
+            return;
+        },
     };
 
     let provider = CssProvider::new();

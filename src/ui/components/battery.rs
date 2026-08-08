@@ -34,9 +34,27 @@ pub fn battery() -> GtkBox {
     container.append(&value);
 
     let device = find_battery();
+    if device.is_none() {
+        crate::log::warn("battery", "no battery found under /sys/class/power_supply");
+    }
+    let mut warned = false;
     let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        Some(match &device {
-            Some(device) => read_state(device).unwrap_or(BatteryState::NoBattery),
+        Some(match device.as_ref() {
+            Some(device) => {
+                match read_state(device) {
+                    Some(state) => state,
+                    None => {
+                        if !warned {
+                            crate::log::warn(
+                                "battery",
+                                &format!("could not read state for {}", device.display()),
+                            );
+                            warned = true;
+                        }
+                        BatteryState::NoBattery
+                    },
+                }
+            },
             None => BatteryState::NoBattery,
         })
     });

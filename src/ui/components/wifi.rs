@@ -29,10 +29,20 @@ pub fn wifi() -> GtkBox {
         crate::log::warn("wifi", "no wireless interface under /sys/class/net");
     }
 
+    let mut warned = false;
     let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        device
-            .as_ref()
-            .map(|device| query(device).unwrap_or(WifiState::Disconnected))
+        device.as_ref().map(|device| {
+            match query(device) {
+                Some(state) => state,
+                None => {
+                    if !warned {
+                        crate::log::warn("wifi", &format!("iwctl query failed for {device}"));
+                        warned = true;
+                    }
+                    WifiState::Disconnected
+                },
+            }
+        })
     });
 
     glib::spawn_future_local(glib::clone!(

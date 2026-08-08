@@ -45,9 +45,24 @@ pub fn brightness() -> GtkBox {
     container.set_visible(device.is_some());
 
     let poll_device = device.clone();
+    let mut warned = false;
     let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        Some(match poll_device.as_deref().and_then(read_percent) {
-            Some(percent) => BrightnessState::Present(percent),
+        Some(match poll_device.as_deref() {
+            Some(device) => {
+                match read_percent(device) {
+                    Some(percent) => BrightnessState::Present(percent),
+                    None => {
+                        if !warned {
+                            crate::log::warn(
+                                "brightness",
+                                &format!("could not read brightness for {}", device.display()),
+                            );
+                            warned = true;
+                        }
+                        BrightnessState::NoDevice
+                    },
+                }
+            },
             None => BrightnessState::NoDevice,
         })
     });
@@ -147,12 +162,22 @@ fn read_percent(device: &std::path::Path) -> Option<u32> {
 
 fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<BrightnessState>) {
     let step = step.to_string();
-    thread::spawn(move || {
-        let _ = Command::new("brightnessctl").args(["set", &step]).status();
-        if let Some(device) = &device &&
-            let Some(percent) = read_percent(device)
-        {
-            let _ = tx.send_blocking(BrightnessState::Present(percent));
-        }
-    });
+    if let Some(device) = device &&
+        let Some(name) = device.file_name()
+    {
+        let name = name.to_string_lossy().into_owned();
+        thread::spawn(move || {
+            if let Err(err) = Command::new("brightnessctl")
+                .args(["--device", &name, "set", &step])
+                .status()
+            {
+                crate::log::warn("brightness", &format!("failed to run brightnessctl: {err}"));
+            }
+            if let Some(percent) = read_percent(&device) {
+                let _ = tx.send_blocking(BrightnessState::Present(percent));
+            }
+        });
+    } else {
+        crate::log::warn("brightness", "cannot adjust brightness: device unavailable");
+    }
 }

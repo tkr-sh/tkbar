@@ -133,7 +133,9 @@ fn parse_get_volume(text: &str) -> Option<VolState> {
 fn wpctl(args: &[&str], tx: async_channel::Sender<VolState>) {
     let args: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
     thread::spawn(move || {
-        let _ = Command::new("wpctl").args(&args).status();
+        if let Err(err) = Command::new("wpctl").args(&args).status() {
+            crate::log::warn("volume", &format!("failed to run wpctl: {err}"));
+        }
         if let Some(state) = query() {
             let _ = tx.send_blocking(state);
         }
