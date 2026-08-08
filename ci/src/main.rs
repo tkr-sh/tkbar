@@ -1,82 +1,29 @@
 use {
     dagger_sdk::{HostDirectoryOpts, connect},
     std::process::ExitCode,
+    tkbar_ci::{push, release},
 };
 
-const NIX_IMAGE: &str = "nixos/nix:latest";
 
-const NIX_CONF: &str = "experimental-features = nix-command flakes\nsandbox = false";
-
-// Each entry becomes its own Dagger step, so a failure is attributed to the
-// exact check in the trace and CI logs. Kept in sync with the `ci` recipe in
-// the justfile.
-const STEPS: &[&str] = &[
-    "css",
-    "ci-fmt",
-    "ci-check",
-    "ci-clippy",
-    "ci-test",
-];
-
-fn nix_develop<'a>(cmd: &'a [&'a str]) -> Vec<&'a str> {
-    let mut args: Vec<&str> = vec!["nix", "develop"];
-
-    if !cmd.is_empty() {
-        args.push("--command");
-    }
-
-    args.extend(cmd);
-    args
-}
-
-async fn run() -> eyre::Result<()> {
-    connect(|dag| {
-        async move {
-            let src = dag.host().directory_opts(
-                ".",
-                HostDirectoryOpts {
-                    exclude: Some(vec![
-                        "target/",
-                        "result",
-                        ".git/",
-                        ".sass-cache/",
-                        "ci/",
-                    ]),
-                    gitignore: Some(true),
-                    include: None,
-                    no_cache: None,
-                },
-            );
-
-            let mut env = dag
-                .container()
-                .from(NIX_IMAGE)
-                .with_env_variable("NIX_CONFIG", NIX_CONF)
-                .with_mounted_cache("/root/.cache/nix", dag.cache_volume("tkbar-nix-cache"))
-                .with_mounted_cache("/root/.cargo", dag.cache_volume("tkbar-cargo-home"))
-                .with_directory("/src", src)
-                .with_workdir("/src")
-                .with_mounted_cache("/src/target", dag.cache_volume("tkbar-cargo-target"));
-            env = env.with_exec(nix_develop(&[])).sync().await?;
-
-            for recipe in STEPS {
-                env = env.with_exec(nix_develop(&["just", recipe])).sync().await?;
-            }
-
-            Ok(())
-        }
-    })
-    .await?;
-
-    Ok(())
-}
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    match run().await {
+    let cmd = std::env::args().nth(1);
+
+    let result = connect(|dag| {
+        async move {
+            match cmd.as_deref() {
+                Some("release") => release::run(dag).await,
+                _ => push::run(dag).await,
+            }
+        }
+    })
+    .await;
+
+    match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("ci failed: {e:#}");
+            eprintln!("Fail: {e:#}");
             ExitCode::FAILURE
         },
     }

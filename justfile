@@ -28,25 +28,6 @@ nix-run:
 css:
     nu ./scripts/css.nu
 
-# --- CI checks (non-destructive, --locked) ---
-
-[group: 'ci']
-ci-fmt:
-    cargo fmt --check
-    taplo fmt --check
-
-[group: 'ci']
-ci-check:
-    cargo check --locked
-
-[group: 'ci']
-ci-clippy:
-    cargo clippy --locked
-
-[group: 'ci']
-ci-test:
-    cargo nextest run
-
 # Check + auto-format (local convenience)
 [group: 'check']
 check:
@@ -62,8 +43,32 @@ fix:
     cargo fmt
     taplo fmt
 
+# --- CI checks (non-destructive, --locked) ---
+
+[group: 'ci']
+release version:
+    nu ./scripts/release.nu {{version}}
+
+[group: 'ci']
+ci-fmt:
+    cargo fmt --check
+    taplo fmt --check
+
+[group: 'ci']
+ci-check:
+    cargo check --locked
+
+[group: 'ci']
+ci-clippy:
+    cargo clippy --locked -- -Dwarnings
+
+[group: 'ci']
+ci-test:
+    cargo nextest run
+
+
 # Run the Dagger CI pipeline locally (needs docker or podman)
-[group: 'check']
+[group: 'ci']
 dagger:
     cargo build --release --manifest-path ci/Cargo.toml
     dagger run ci/target/release/tkbar-ci
