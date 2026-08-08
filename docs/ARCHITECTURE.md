@@ -6,6 +6,12 @@ layer-shell surface.
 
 ## Crate layout
 
+The repository is a Cargo workspace with two crates: `tkbar` at the root (a
+bin + lib package) and the `tkbar-ci` pipeline in [`ci/`](../ci). The clippy
+lints live once in the root manifest as `[workspace.lints.clippy]`.
+
+The `tkbar` crate:
+
 ```
 src/
 ├── main.rs        entry point; builds the GTK Application and wires callbacks

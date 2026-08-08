@@ -21,13 +21,7 @@ pub(crate) fn src(dag: &DaggerConn) -> Directory {
     dag.host().directory_opts(
         ".",
         HostDirectoryOpts {
-            exclude: Some(vec![
-                "target/",
-                "result",
-                ".git/",
-                ".sass-cache/",
-                "ci/",
-            ]),
+            exclude: Some(vec!["target/", "result", ".git/", ".sass-cache/"]),
             gitignore: Some(true),
             include: None,
             no_cache: None,

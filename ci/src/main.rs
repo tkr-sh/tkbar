@@ -1,5 +1,5 @@
 use {
-    dagger_sdk::{HostDirectoryOpts, connect},
+    dagger_sdk::connect,
     std::process::ExitCode,
     tkbar_ci::{push, release},
 };

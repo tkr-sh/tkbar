@@ -1,12 +1,6 @@
-use {
-    crate::nix_develop,
-    dagger_sdk::{DaggerConn, HostDirectoryOpts, Query, connect},
-};
+use {crate::nix_develop, dagger_sdk::Query};
 
 pub async fn run(dag: Query) -> eyre::Result<()> {
-    let tag = std::env::var("RELEASE_TAG")?;
-    let version = tag.trim_start_matches('v');
-
     let src = crate::src(&dag);
     let mut env = crate::env(&dag, src);
 

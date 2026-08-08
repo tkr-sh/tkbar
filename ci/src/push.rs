@@ -1,8 +1,4 @@
-use {
-    crate::nix_develop,
-    dagger_sdk::{DaggerConn, HostDirectoryOpts, connect},
-    std::process::ExitCode,
-};
+use {crate::nix_develop, dagger_sdk::DaggerConn};
 
 const STEPS: &[&str] = &[
     "css",

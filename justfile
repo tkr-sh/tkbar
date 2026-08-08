@@ -56,19 +56,19 @@ ci-fmt:
 
 [group: 'ci']
 ci-check:
-    cargo check --locked
+    cargo check --locked --workspace
 
 [group: 'ci']
 ci-clippy:
-    cargo clippy --locked -- -Dwarnings
+    cargo clippy --locked --workspace -- -Dwarnings
 
 [group: 'ci']
 ci-test:
-    cargo nextest run
+    cargo nextest run --workspace
 
 
 # Run the Dagger CI pipeline locally (needs docker or podman)
 [group: 'ci']
 dagger:
-    cargo build --release --manifest-path ci/Cargo.toml
-    dagger run ci/target/release/tkbar-ci
+    cargo build --release -p tkbar-ci
+    dagger run target/release/tkbar-ci
