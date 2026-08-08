@@ -148,3 +148,9 @@
     too_many_arguments = "allow"
     type_complexity = "allow"
     upper_case_acronyms = "allow"
+
+[profile.release]
+    codegen-units = 1
+    lto = true
+    panic = "abort"
+    strip = true

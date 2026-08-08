@@ -8,8 +8,6 @@ mod components;
 
 pub(crate) use components::Component;
 
-const BAR_SIZE: i32 = 72;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
@@ -47,7 +45,8 @@ impl BarPosition {
 }
 
 pub fn build_window(app: &Application) {
-    let bar_size = i32::try_from(CONFIG.bar_size_px).unwrap_or(BAR_SIZE);
+    let bar_size = i32::try_from(CONFIG.bar_size_px)
+        .unwrap_or_else(|_| i32::try_from(crate::conf::default_bar_size_px()).unwrap_or_default());
 
     let mut builder = ApplicationWindow::builder().application(app);
     builder = match CONFIG.position {

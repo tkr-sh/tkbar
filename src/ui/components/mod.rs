@@ -8,7 +8,7 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
-    std::{thread, time::Duration},
+    std::{fmt::Write as _, thread, time::Duration},
 };
 pub use {
     battery::battery,
@@ -88,7 +88,8 @@ pub fn spacer() -> GtkBox {
 pub fn clock() -> Label {
     let clock = Label::new(None);
     clock.add_css_class("clock");
-    update_clock(&clock);
+    let mut buf = String::with_capacity(8);
+    update_clock(&clock, &mut buf);
 
     glib::timeout_add_seconds_local(
         1,
@@ -98,7 +99,7 @@ pub fn clock() -> Label {
             #[upgrade_or]
             glib::ControlFlow::Break,
             move || {
-                update_clock(&clock);
+                update_clock(&clock, &mut buf);
                 glib::ControlFlow::Continue
             }
         ),
@@ -108,16 +109,19 @@ pub fn clock() -> Label {
 }
 
 
-fn update_clock(label: &Label) {
+fn update_clock(label: &Label, buf: &mut String) {
     let now = chrono::Local::now();
-    label.set_text(
-        &now.format(
+    buf.clear();
+    let _ = write!(
+        buf,
+        "{}",
+        now.format(
             if CONFIG.position.orientation() == Orientation::Horizontal {
                 "%H %M %S"
             } else {
                 "%H\n%M\n%S"
-            },
+            }
         )
-        .to_string(),
     );
+    label.set_text(buf);
 }

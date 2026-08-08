@@ -83,7 +83,7 @@ fn config_path() -> Option<std::path::PathBuf> {
     )
 }
 
-const fn default_bar_size_px() -> usize {
+pub(crate) const fn default_bar_size_px() -> usize {
     72
 }
 
