@@ -63,6 +63,15 @@ fn load_from(path: Option<&std::path::Path>) -> Config {
         Ok(config) => config,
         Err(err) => {
             crate::log::error("config", &format!("{}: {err}", path.display()));
+            // `CONFIG` is a `LazyLock<Config>`, so `load` must yield a `Config`,
+            // not a `Result`. Propagating an error up to `main` would require
+            // either threading `&Config` through every widget constructor or
+            // replacing the global with an `OnceLock` plus an accessor (and an
+            // `expect`) at every call site — a lot of churn for a single,
+            // startup-only error path. This exit is deliberate and confined to
+            // startup config validation: it is never reached at runtime, never
+            // on untrusted widget input (SSID, `wpctl`, `iwctl`, ...), which
+            // all stay on fallible `parse().ok()?` chains that fail closed.
             std::process::exit(1);
         },
     }
