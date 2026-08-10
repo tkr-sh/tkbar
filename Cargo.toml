@@ -12,7 +12,7 @@
     gtk4 = { version = "0.9", features = ["v4_12"] }
     gtk4-layer-shell = "0.4"
 
-    # Workspace backends (exactly one must be enabled)
+    # Workspace backends
     hyprland = { version = "0.4.0-beta.3", optional = true, default-features = false, features = [
         "data",
         "dispatch",
@@ -31,7 +31,7 @@
     config = ["dep:directories", "dep:serde", "dep:toml"]
     default = ["black", "config", "niri"]
 
-    # Workspace backends (exactly one must be enabled)
+    # Workspace backends
     hyprland = ["dep:hyprland"]
     niri = ["dep:niri-ipc"]
 
