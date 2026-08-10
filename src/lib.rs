@@ -127,6 +127,6 @@ const fn workspace_backend_count() -> usize {
 }
 
 const _: () = assert!(
-    workspace_backend_count() >= 1,
+    workspace_backend_count() <= 1,
     "zero or one of the workspace backends must be enabled: niri, hyprland"
 );
