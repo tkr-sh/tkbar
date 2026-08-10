@@ -2,26 +2,24 @@ mod battery;
 mod brightness;
 mod volume;
 mod wifi;
+#[cfg(any(feature = "niri", feature = "hyprland"))]
 mod workspaces;
 
+#[cfg(any(feature = "niri", feature = "hyprland"))]
+pub use workspaces::workspaces;
 use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
     std::{fmt::Write as _, thread, time::Duration},
 };
-pub use {
-    battery::battery,
-    brightness::brightness,
-    volume::volume,
-    wifi::wifi,
-    workspaces::workspaces,
-};
+pub use {battery::battery, brightness::brightness, volume::volume, wifi::wifi};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 pub enum Component {
     Logo(char),
+    #[cfg(any(feature = "niri", feature = "hyprland"))]
     Workspaces,
     Spacer,
     Battery,
@@ -40,6 +38,7 @@ impl Component {
                 logo.set_xalign(0.45);
                 bar.append(&logo);
             },
+            #[cfg(any(feature = "niri", feature = "hyprland"))]
             Component::Workspaces => bar.append(&workspaces()),
             Component::Spacer => bar.append(&spacer()),
             Component::Battery => bar.append(&battery()),

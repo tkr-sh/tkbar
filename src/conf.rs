@@ -18,6 +18,44 @@ pub struct Config {
     pub bar_size_px: usize,
     #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
+    #[cfg_attr(feature = "config", serde(default))]
+    pub security: Security,
+}
+
+#[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "config", serde(deny_unknown_fields))]
+pub struct Security {
+    /// Whether to display custom workspace names (labels) instead of numeric IDs.
+    ///
+    /// Some compositors like Hyprland allow workspaces to carry an arbitrary
+    /// [`String`] as a name, either set statically in the config
+    /// (`workspace = 1, defaultName:web`) or dynamically at runtime
+    /// (`hyprctl dispatch renameworkspace`, or scripts deriving names from
+    /// window content).
+    ///
+    /// # Security considerations
+    ///
+    /// Workspace names should be treated as **untrusted input**.
+    ///
+    /// When rendered as plain text ([`gtk4::Label::set_text`]), such strings are
+    /// displayed verbatim and are harmless in themselves. Restricting them is
+    /// nonetheless worthwhile as defense in depth: arbitrary strings still
+    /// flow through the text-rendering stack (Pango/HarfBuzz), a large and
+    /// complex parsing surface where memory-safety vulnerabilities have
+    /// existed before and could exist again. Displaying only numeric IDs
+    /// keeps untrusted bytes out of that path entirely.
+    ///
+    /// When disabled (the safe default), only the numeric workspace ID is
+    /// displayed and no untrusted string reaches the rendering pipeline.
+    pub does_allow_workspace_label: bool,
+}
+
+impl Default for Security {
+    fn default() -> Self {
+        Self {
+            does_allow_workspace_label: false,
+        }
+    }
 }
 
 impl Config {
@@ -26,6 +64,7 @@ impl Config {
             position: BarPosition::default(),
             bar_size_px: default_bar_size_px(),
             components: default_components(),
+            security: Security::default(),
         }
     }
 }
@@ -99,6 +138,7 @@ pub(crate) const fn default_bar_size_px() -> usize {
 fn default_components() -> Vec<Component> {
     vec![
         Component::Logo('󱄅'),
+        #[cfg(any(feature = "niri", feature = "hyprland"))]
         Component::Workspaces,
         Component::Spacer,
         Component::Battery,
