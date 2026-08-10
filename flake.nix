@@ -67,18 +67,20 @@
             packages.dagger = dagger.packages.${system}.dagger;
 
             # tkbar.packages.${system}.default.override {
-            #   color = "purple";     # one of: black blue cyan green orange pink purple red white yellow
-            #   withConfig = false;   # set false to drop the optional TOML/CSS config
+            #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
+            #   workspace = "hyprland";         # one of: niri hyprland
+            #   withConfig = false;             # set false to drop the optional TOML/CSS config
             # }
             packages.default = pkgs.lib.makeOverridable
-                ({ color ? "black", withConfig ? true }: rustPlatform.buildRustPackage {
+                ({ color ? "black", workspace ? "niri", withConfig ? true }:
+                rustPlatform.buildRustPackage {
                     pname = "tkbar";
                     version = "0.1.0";
                     src = ./.;
                     cargoLock.lockFile = ./Cargo.lock;
 
                     buildNoDefaultFeatures = true;
-                    buildFeatures = [ color ] ++ pkgs.lib.optional withConfig "config";
+                    buildFeatures = [ color workspace ] ++ pkgs.lib.optional withConfig "config";
 
                     # The bar renders icons from font glyphs and never loads
                     # images. Point gdk-pixbuf at an empty loader cache so

@@ -114,3 +114,19 @@ const _: () = assert!(
     color_feature_count() == 1,
     "exactly one color feature must be enabled: black, blue, cyan, green, orange, pink, purple, red, white, yellow"
 );
+
+const fn workspace_backend_count() -> usize {
+    let mut n = 0;
+    if cfg!(feature = "niri") {
+        n += 1;
+    }
+    if cfg!(feature = "hyprland") {
+        n += 1;
+    }
+    n
+}
+
+const _: () = assert!(
+    workspace_backend_count() >= 1,
+    "zero or one of the workspace backends must be enabled: niri, hyprland"
+);
