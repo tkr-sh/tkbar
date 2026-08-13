@@ -1,6 +1,6 @@
 use {
     super::Ws,
-    crate::ui::{components::workspaces::WORKSPACE_COUNT, CONFIG},
+    crate::ui::{CONFIG, components::workspaces::WORKSPACE_COUNT},
     hyprland::{
         data::{Workspace, Workspaces},
         dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial},
@@ -62,7 +62,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
             }
             Some(Ws {
                 id: u64::try_from(wks.id).ok()?,
-                label: if CONFIG.security.does_allow_workspace_label {
+                label: if CONFIG.security.should_allow_workspace_label {
                     wks.name
                 } else {
                     wks.id.to_string()

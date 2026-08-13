@@ -1,15 +1,8 @@
 use {
-    super::{Ws, WORKSPACE_COUNT},
-    niri_ipc::{socket::Socket, Action, Event, Request, Response, WorkspaceReferenceArg},
+    super::{WORKSPACE_COUNT, Ws},
+    crate::conf::CONFIG,
+    niri_ipc::{Action, Event, Request, Response, WorkspaceReferenceArg, socket::Socket},
 };
-
-#[derive(Clone, Copy, Debug)]
-struct NiriWs {
-    id: u64,
-    idx: u8,
-    is_active: bool,
-    is_focused: bool,
-}
 
 pub(super) fn event_loop(tx: &async_channel::Sender<Vec<Ws>>) -> Result<(), String> {
     ipc_loop(tx).map_err(|e| e.to_string())
@@ -26,7 +19,7 @@ fn ipc_loop(tx: &async_channel::Sender<Vec<Ws>>) -> std::io::Result<()> {
     }
     let mut read_event = socket.read_events();
 
-    let mut state: Vec<NiriWs> = Vec::new();
+    let mut state: Vec<Ws> = Vec::new();
 
     loop {
         match read_event()? {
@@ -34,9 +27,16 @@ fn ipc_loop(tx: &async_channel::Sender<Vec<Ws>>) -> std::io::Result<()> {
                 state = workspaces
                     .into_iter()
                     .map(|w| {
-                        NiriWs {
+                        Ws {
                             id: w.id,
                             idx: w.idx,
+                            label: if CONFIG.security.should_allow_workspace_label &&
+                                let Some(name) = w.name
+                            {
+                                name
+                            } else {
+                                w.idx.to_string()
+                            },
                             is_active: w.active_window_id.is_some(),
                             is_focused: w.is_focused,
                         }
@@ -61,32 +61,26 @@ fn ipc_loop(tx: &async_channel::Sender<Vec<Ws>>) -> std::io::Result<()> {
             _ => {},
         }
 
-        let snap: Vec<Ws> = (1..=WORKSPACE_COUNT)
-            .map(|idx| {
-                state.iter().find(|wks| wks.idx == idx).map_or_else(
-                    || {
-                        Ws {
-                            id: u64::from(idx),
-                            label: idx.to_string(),
-                            is_active: false,
-                            is_focused: false,
-                        }
-                    },
-                    |wks| {
-                        Ws {
-                            id: wks.id,
-                            label: wks.idx.to_string(),
-                            is_active: wks.is_active,
-                            is_focused: wks.is_focused,
-                        }
-                    },
-                )
-            })
-            .collect();
+        if CONFIG.should_show_empty_workspace {
+            for idx in 1..=WORKSPACE_COUNT {
+                if state.iter().all(|wks| wks.idx != idx) {
+                    state.push(Ws {
+                        id: u64::from(idx),
+                        idx,
+                        label: idx.to_string(),
+                        is_active: false,
+                        is_focused: false,
+                    });
+                }
+            }
+        }
 
-        let _ = tx.send_blocking(snap);
+        state.sort_unstable_by_key(|wks| wks.idx);
+
+        let _ = tx.send_blocking(state.clone());
     }
 }
+
 
 pub(super) fn focus_workspace(id: u64) {
     let mut socket = match Socket::connect() {
