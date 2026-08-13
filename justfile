@@ -45,6 +45,12 @@ fix:
 
 # --- CI checks (non-destructive, --locked) ---
 
+# Run the Dagger CI pipeline locally (needs docker or podman)
+[group: 'ci']
+dagger:
+    cargo build --release -p tkbar-ci
+    dagger run target/release/tkbar-ci
+
 [group: 'ci']
 release version:
     nu ./scripts/release.nu {{version}}
@@ -59,6 +65,12 @@ ci-check:
     cargo check --locked --workspace
 
 [group: 'ci']
+ci-check-features:
+    cargo check --locked --target tkbar --no-default-features --features config,hyprland
+    cargo check --locked --target tkbar --no-default-features
+    cargo check --locked --target tkbar --no-default-features --features red
+
+[group: 'ci']
 ci-clippy:
     cargo clippy --locked --workspace -- -Dwarnings
 
@@ -66,9 +78,3 @@ ci-clippy:
 ci-test:
     cargo nextest run --workspace
 
-
-# Run the Dagger CI pipeline locally (needs docker or podman)
-[group: 'ci']
-dagger:
-    cargo build --release -p tkbar-ci
-    dagger run target/release/tkbar-ci
