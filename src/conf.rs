@@ -16,6 +16,10 @@ pub struct Config {
     pub position: BarPosition,
     #[cfg_attr(feature = "config", serde(default = "default_bar_size_px"))]
     pub bar_size_px: usize,
+    /// When a workspace is empty, should it be shown ?
+    #[cfg_attr(feature = "config", serde(default = "default_true"))]
+    // #[cfg_attr(feature = "config", serde(default = "default_true"))]
+    pub should_show_empty_workspace: bool,
     #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default))]
@@ -47,13 +51,13 @@ pub struct Security {
     ///
     /// When disabled (the safe default), only the numeric workspace ID is
     /// displayed and no untrusted string reaches the rendering pipeline.
-    pub does_allow_workspace_label: bool,
+    pub should_allow_workspace_label: bool,
 }
 
 impl Default for Security {
     fn default() -> Self {
         Self {
-            does_allow_workspace_label: false,
+            should_allow_workspace_label: false,
         }
     }
 }
@@ -61,6 +65,7 @@ impl Default for Security {
 impl Config {
     fn hardcoded() -> Self {
         Config {
+            should_show_empty_workspace: default_true(),
             position: BarPosition::default(),
             bar_size_px: default_bar_size_px(),
             components: default_components(),
@@ -133,6 +138,10 @@ fn config_path() -> Option<std::path::PathBuf> {
 
 pub(crate) const fn default_bar_size_px() -> usize {
     72
+}
+
+pub(crate) const fn default_true() -> bool {
+    true
 }
 
 fn default_components() -> Vec<Component> {

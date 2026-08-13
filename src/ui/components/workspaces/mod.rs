@@ -1,6 +1,6 @@
 use {
     crate::conf::CONFIG,
-    gtk::{glib, prelude::*, Align, Box as GtkBox, Button},
+    gtk::{Align, Box as GtkBox, Button, glib, prelude::*},
     gtk4 as gtk,
     std::thread,
 };
@@ -15,6 +15,8 @@ mod niri;
 #[derive(Clone, Debug)]
 struct Ws {
     id: u64,
+    /// Maximum of 255 workspaces
+    idx: u8,
     label: String,
     is_active: bool,
     is_focused: bool,
@@ -49,6 +51,10 @@ pub fn workspaces() -> GtkBox {
                 }
 
                 for ws in &list {
+                    if !CONFIG.should_show_empty_workspace && !ws.is_active && ws.is_focused {
+                        continue;
+                    }
+
                     let btn = Button::with_label(&ws.label);
                     btn.add_css_class("workspace");
                     if ws.is_focused {
