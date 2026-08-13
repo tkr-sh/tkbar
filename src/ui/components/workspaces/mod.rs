@@ -13,6 +13,10 @@ mod hypr;
 mod niri;
 
 #[derive(Clone, Debug)]
+#[cfg_attr(
+    feature = "hyprland",
+    expect(dead_code, reason = "`idx` is not used in hyprland")
+)]
 struct Ws {
     id: u64,
     /// Maximum of 255 workspaces

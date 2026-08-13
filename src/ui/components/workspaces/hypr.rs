@@ -62,6 +62,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
             }
             Some(Ws {
                 id: u64::try_from(wks.id).ok()?,
+                idx: u8::try_from(wks.id).ok()?,
                 label: if CONFIG.security.should_allow_workspace_label {
                     wks.name
                 } else {
@@ -77,6 +78,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
         if list.iter().all(|wks| wks.id != u64::from(idx)) {
             list.push(Ws {
                 id: u64::from(idx),
+                idx: idx,
                 label: idx.to_string(),
                 is_active: false,
                 is_focused: idx == u8::try_from(focused_id).unwrap_or_default(),
