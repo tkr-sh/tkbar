@@ -78,7 +78,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
         if list.iter().all(|wks| wks.id != u64::from(idx)) {
             list.push(Ws {
                 id: u64::from(idx),
-                idx: idx,
+                idx,
                 label: idx.to_string(),
                 is_active: false,
                 is_focused: idx == u8::try_from(focused_id).unwrap_or_default(),
