@@ -17,7 +17,6 @@
         "data",
         "dispatch",
         "listener",
-        "tokio",
     ] }
     niri-ipc = { version = "26.4.0", optional = true }
 
