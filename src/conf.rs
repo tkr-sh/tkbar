@@ -54,6 +54,7 @@ pub struct Security {
     pub should_allow_workspace_label: bool,
 }
 
+#[allow(clippy::derivable_impls, reason = "Make declaration explicit")]
 impl Default for Security {
     fn default() -> Self {
         Self {

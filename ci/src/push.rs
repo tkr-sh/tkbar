@@ -4,6 +4,7 @@ const STEPS: &[&str] = &[
     "css",
     "ci-fmt",
     "ci-check",
+    "ci-check-features",
     "ci-clippy",
     "ci-test",
 ];
