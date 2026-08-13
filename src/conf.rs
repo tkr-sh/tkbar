@@ -18,11 +18,21 @@ pub struct Config {
     pub bar_size_px: usize,
     /// When a workspace is empty, should it be shown ?
     #[cfg_attr(feature = "config", serde(default = "default_true"))]
-    // #[cfg_attr(feature = "config", serde(default = "default_true"))]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland")),
+        expect(dead_code, reason = "Unused when no WM supported")
+    )]
     pub should_show_empty_workspace: bool,
     #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default))]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland")),
+        expect(
+            dead_code,
+            reason = "Unused when no WM supported. Might change when more features are added to security."
+        )
+    )]
     pub security: Security,
 }
 
@@ -51,6 +61,10 @@ pub struct Security {
     ///
     /// When disabled (the safe default), only the numeric workspace ID is
     /// displayed and no untrusted string reaches the rendering pipeline.
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland")),
+        expect(dead_code, reason = "Unused when no WM supported")
+    )]
     pub should_allow_workspace_label: bool,
 }
 

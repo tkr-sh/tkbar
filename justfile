@@ -65,10 +65,9 @@ ci-check:
     cargo check --locked --workspace
 
 [group: 'ci']
-ci-check-features:
-    cargo check --locked --target tkbar --no-default-features --features config,hyprland
-    cargo check --locked --target tkbar --no-default-features
-    cargo check --locked --target tkbar --no-default-features --features red
+ci-clippy-features:
+    cargo clippy --locked --no-default-features --features config,hyprland,black -- -Dwarnings
+    cargo clippy --locked --no-default-features --features red -- -Dwarnings
 
 [group: 'ci']
 ci-clippy:
