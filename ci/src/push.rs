@@ -5,8 +5,8 @@ const STEPS: &[&str] = &[
     "ci-fmt",
     "ci-check",
     "ci-clippy",
-    "ci-clippy-features",
     "ci-test",
+    "ci-clippy-features",
 ];
 
 pub async fn run(dag: DaggerConn) -> eyre::Result<()> {
