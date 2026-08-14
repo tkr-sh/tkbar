@@ -11,7 +11,7 @@ const STEPS: &[&str] = &[
 
 pub async fn run(dag: DaggerConn) -> eyre::Result<()> {
     let src = crate::src(&dag);
-    let mut env = crate::env(&dag, src);
+    let mut env = crate::env(&dag, src).await?;
 
     env = env.with_exec(nix_develop(&[])).sync().await?;
 
