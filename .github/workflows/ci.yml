@@ -26,6 +26,5 @@ jobs:
                   verb: run
                   args: target/release/tkbar-ci
                   version: v0.21.8
-                  dagger-flags: "--cloud --progress plain"
                   enable-github-summary: 'true'
                   cloud-token: ${{ secrets.DAGGER_CLOUD_TOKEN }}
