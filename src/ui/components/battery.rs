@@ -26,16 +26,15 @@ struct BatteryData {
 }
 
 impl BatteryData {
-    #[expect(clippy::as_conversions, reason = "u64 to f64")]
-    const fn percent(self) -> u8 {
-        (self.energy_now as f64 /
+    fn percent(self) -> u8 {
+        let percent = self.energy_now * 100 /
             if self.energy_full == 0 {
                 1
             } else {
                 self.energy_full
-            } as f64 *
-            100.0)
-            .round() as u8
+            };
+
+        u8::try_from(percent.min(100)).unwrap_or(100)
     }
 
     const fn merge(self, r: Self) -> Self {
