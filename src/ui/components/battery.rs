@@ -226,22 +226,53 @@ fn find_power_supplies() -> (Vec<PathBuf>, Vec<PathBuf>) {
 }
 
 
+/// Aggregates battery data by summing raw values (e.g., µWh or µAh).
+/// This results in a mathematically correct weighted average for multi-battery systems.
+///
+/// NOTE: This is structurally problematic if batteries expose mismatched units (e.g.,
+/// one battery exposes `energy_*` in µWh, while another only exposes `capacity` in %).
+/// Because `%` is a relative unit, it cannot be directly added to absolute units like `µWh`
+/// without knowing the physical maximum capacity of the battery reporting the percentage.
+///
+/// In these mixed-unit scenarios, there is no way to calculate a perfectly correct weighted
+/// percentage from userspace. Fortunately, in real-world Linux systems, kernel drivers
+/// almost universally standardize on a single unit type across all batteries in a machine.
 fn read_battery_state(device: &Path) -> Option<BatteryData> {
-    let energy_now: u64 = fs::read_to_string(device.join("energy_now"))
-        .ok()?
-        .trim()
-        .parse()
-        .ok()?;
-    let energy_full: u64 = fs::read_to_string(device.join("energy_full"))
-        .ok()?
-        .trim()
-        .parse()
-        .ok()?;
+    // 1. Energy (µWh)
+    if let (Ok(now), Ok(full)) = (
+        fs::read_to_string(device.join("energy_now")),
+        fs::read_to_string(device.join("energy_full")),
+    ) && let (Ok(n), Ok(f)) = (now.trim().parse(), full.trim().parse())
+    {
+        return Some(BatteryData {
+            energy_now: n,
+            energy_full: f,
+        });
+    }
 
-    Some(BatteryData {
-        energy_now,
-        energy_full,
-    })
+    // 2. Fallback charge (µAh)
+    if let (Ok(now), Ok(full)) = (
+        fs::read_to_string(device.join("charge_now")),
+        fs::read_to_string(device.join("charge_full")),
+    ) && let (Ok(n), Ok(f)) = (now.trim().parse(), full.trim().parse())
+    {
+        return Some(BatteryData {
+            energy_now: n,
+            energy_full: f,
+        });
+    }
+
+    // 3. Ultimate fallback: Raw Capacity (%)
+    if let Ok(cap) = fs::read_to_string(device.join("capacity")) &&
+        let Ok(c) = cap.trim().parse::<u64>()
+    {
+        return Some(BatteryData {
+            energy_now: c,
+            energy_full: 100,
+        });
+    }
+
+    None
 }
 
 fn read_online(device: &Path) -> Option<bool> {
