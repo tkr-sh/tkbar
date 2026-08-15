@@ -7,7 +7,7 @@ use {
         path::{Path, PathBuf},
         sync::{
             LazyLock,
-            atomic::{AtomicBool, AtomicU8},
+            atomic::{AtomicBool, AtomicU8, Ordering},
         },
         time::Duration,
     },
@@ -122,7 +122,7 @@ pub fn battery() -> GtkBox {
                     },
                     BatteryState::Present(battery) => {
                         container.set_visible(true);
-                        let is_charging = IS_CHARGING.load(std::sync::atomic::Ordering::Relaxed);
+                        let is_charging = IS_CHARGING.load(Ordering::Relaxed);
                         icon.set_text(icon_for(battery.percent(), is_charging));
                         value.set_text(&battery.percent().to_string());
 
@@ -132,7 +132,7 @@ pub fn battery() -> GtkBox {
                             container.remove_css_class("critical");
                         }
 
-                        PERCENT.swap(battery.percent(), std::sync::atomic::Ordering::Relaxed);
+                        PERCENT.store(battery.percent(), Ordering::Relaxed);
                     },
                 }
             }
@@ -152,11 +152,8 @@ pub fn battery() -> GtkBox {
                 } else {
                     container.remove_css_class("charging");
                 }
-                icon.set_text(icon_for(
-                    PERCENT.load(std::sync::atomic::Ordering::Relaxed),
-                    is_charging,
-                ));
-                IS_CHARGING.swap(is_charging, std::sync::atomic::Ordering::Relaxed);
+                icon.set_text(icon_for(PERCENT.load(Ordering::Relaxed), is_charging));
+                IS_CHARGING.store(is_charging, Ordering::Relaxed);
             }
         }
     ));
