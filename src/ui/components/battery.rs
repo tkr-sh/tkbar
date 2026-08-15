@@ -49,6 +49,8 @@ impl BatteryData {
 
 const POLL_INTERVAL_PERCENT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL_CHARGING: Duration = Duration::from_millis(500);
+static IS_CHARGING: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(false));
+static PERCENT: LazyLock<AtomicU8> = LazyLock::new(|| AtomicU8::new(100));
 const CRITICAL_PERCENT: u8 = 15;
 
 pub fn battery() -> GtkBox {
@@ -160,9 +162,6 @@ pub fn battery() -> GtkBox {
 
     container
 }
-
-static IS_CHARGING: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(false));
-static PERCENT: LazyLock<AtomicU8> = LazyLock::new(|| AtomicU8::new(100));
 
 #[allow(
     clippy::wildcard_in_or_patterns,
