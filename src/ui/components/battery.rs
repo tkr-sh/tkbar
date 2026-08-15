@@ -1,12 +1,10 @@
 use {
-    crate::{conf::CONFIG, ui::Component::Battery},
+    crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4::{self as gtk},
     std::{
-        convert::Infallible,
         fs,
         path::{Path, PathBuf},
-        str::FromStr,
         sync::{
             LazyLock,
             atomic::{AtomicBool, AtomicU8},
@@ -25,7 +23,6 @@ enum BatteryState {
 struct BatteryData {
     energy_now: u64,
     energy_full: u64,
-    charging: Charging,
 }
 
 impl BatteryData {
@@ -41,59 +38,14 @@ impl BatteryData {
             .round() as u8
     }
 
-    fn merge(self, r: Self) -> Self {
+    const fn merge(self, r: Self) -> Self {
         Self {
             energy_now: self.energy_now + r.energy_now,
             energy_full: self.energy_full + r.energy_full,
-            charging: self.charging.merge(r.charging),
         }
     }
 }
 
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-enum Charging {
-    Full,
-    Charging,
-    Discharging,
-    #[default]
-    Unknown,
-    NotCharging,
-}
-
-impl Charging {
-    #[inline]
-    fn merge(self, r: Self) -> Self {
-        if self == Self::Full && r == Self::Full {
-            Self::Full
-        } else if self == Self::Charging || r == Self::Charging {
-            Self::Charging
-        } else if self == Self::Discharging || r == Self::Discharging {
-            Self::Discharging
-        } else if self == Self::NotCharging || r == Self::NotCharging {
-            Self::NotCharging
-        } else {
-            Self::Unknown
-        }
-    }
-}
-
-impl FromStr for Charging {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        #[allow(
-            clippy::wildcard_in_or_patterns,
-            reason = "Makes it clearer that 'Unknown' and _ are different"
-        )]
-        Ok(match s {
-            "Full" => Self::Full,
-            "Charging" => Self::Charging,
-            "Discharging" => Self::Discharging,
-            "Not charging" => Self::NotCharging,
-            "Unknown" | _ => Self::Unknown,
-        })
-    }
-}
 
 const POLL_INTERVAL_PERCENT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL_CHARGING: Duration = Duration::from_millis(500);
@@ -114,33 +66,30 @@ pub fn battery() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let devices = find_batteries();
-    if devices.is_empty() {
+    let (batteries, acs) = find_power_supplies();
+
+    if batteries.is_empty() {
         crate::log::warn("battery", "no battery found under /sys/class/power_supply");
     }
 
-    let acs = find_acs();
     if acs.is_empty() {
         crate::log::warn("ac", "no ac found under /sys/class/power_supply");
     }
 
 
     let mut warned = false;
-    let (_, rx) = super::spawn_poller(POLL_INTERVAL_PERCENT, move || {
+    let (_, rx_battery) = super::spawn_poller(POLL_INTERVAL_PERCENT, move || {
         Some(
-            devices
+            batteries
                 .iter()
-                .filter_map(|device| {
-                    match read_battery_state(device) {
-                        Some(state) => {
-                            println!("{state:#?}");
-                            Some(state)
-                        },
+                .filter_map(|battery| {
+                    match read_battery_state(battery) {
+                        Some(state) => Some(state),
                         None => {
                             if !warned {
                                 crate::log::warn(
                                     "battery",
-                                    &format!("could not read state for {}", device.display()),
+                                    &format!("could not read state for {}", battery.display()),
                                 );
                                 warned = true;
                             }
@@ -148,7 +97,7 @@ pub fn battery() -> GtkBox {
                         },
                     }
                 })
-                .reduce(|acc, c| acc.merge(c))
+                .reduce(BatteryData::merge)
                 .map_or(BatteryState::NoBattery, BatteryState::Present),
         )
     });
@@ -166,7 +115,7 @@ pub fn battery() -> GtkBox {
         value,
         #[upgrade_or_default]
         async move {
-            while let Ok(state) = rx.recv().await {
+            while let Ok(state) = rx_battery.recv().await {
                 match state {
                     BatteryState::NoBattery => {
                         container.set_visible(false);
@@ -255,31 +204,30 @@ const fn icon_for(percent: u8, charging: bool) -> &'static str {
 }
 
 
-fn find_batteries() -> Vec<PathBuf> {
+fn find_power_supplies() -> (Vec<PathBuf>, Vec<PathBuf>) {
     let Ok(sys_power_supply_dir) = fs::read_dir("/sys/class/power_supply") else {
-        return Vec::default();
+        return (Vec::default(), Vec::default());
     };
-
 
     sys_power_supply_dir
         .filter_map(Result::ok)
         .map(|e| e.path())
-        .filter(|p| fs::read_to_string(p.join("type")).is_ok_and(|t| t.trim() == "Battery"))
-        .collect()
+        .fold(
+            (Vec::new(), Vec::new()),
+            |(mut batteries, mut acs), path| {
+                if let Ok(type_str) = fs::read_to_string(path.join("type")) {
+                    match type_str.trim() {
+                        "Battery" => batteries.push(path),
+                        "Mains" => acs.push(path),
+                        _ => (),
+                    }
+                }
+
+                (batteries, acs)
+            },
+        )
 }
 
-fn find_acs() -> Vec<PathBuf> {
-    let Ok(sys_power_supply_dir) = fs::read_dir("/sys/class/power_supply") else {
-        return Vec::default();
-    };
-
-
-    sys_power_supply_dir
-        .filter_map(Result::ok)
-        .map(|e| e.path())
-        .filter(|p| fs::read_to_string(p.join("type")).is_ok_and(|t| t.trim() == "Mains"))
-        .collect()
-}
 
 fn read_battery_state(device: &Path) -> Option<BatteryData> {
     let energy_now: u64 = fs::read_to_string(device.join("energy_now"))
@@ -292,13 +240,10 @@ fn read_battery_state(device: &Path) -> Option<BatteryData> {
         .trim()
         .parse()
         .ok()?;
-    let status = fs::read_to_string(device.join("status")).ok()?;
-    let status = status.trim();
 
     Some(BatteryData {
         energy_now,
         energy_full,
-        charging: Charging::from_str(status).unwrap_or_default(),
     })
 }
 
