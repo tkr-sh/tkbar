@@ -127,13 +127,6 @@ pub fn battery() -> GtkBox {
                         let is_charging = IS_CHARGING.load(Ordering::Relaxed);
                         icon.set_text(icon_for(battery.percent(), is_charging));
                         value.set_text(&battery.percent().to_string());
-
-                        if !is_charging && battery.percent() <= CRITICAL_PERCENT {
-                            container.add_css_class("critical");
-                        } else {
-                            container.remove_css_class("critical");
-                        }
-
                         PERCENT.store(battery.percent(), Ordering::Relaxed);
                     },
                 }
@@ -149,12 +142,21 @@ pub fn battery() -> GtkBox {
         #[upgrade_or_default]
         async move {
             while let Ok(is_charging) = rx_ac.recv().await {
+                let percent = PERCENT.load(Ordering::Relaxed);
+
                 if is_charging {
                     container.add_css_class("charging");
                 } else {
                     container.remove_css_class("charging");
                 }
-                icon.set_text(icon_for(PERCENT.load(Ordering::Relaxed), is_charging));
+
+                if !is_charging && percent <= CRITICAL_PERCENT {
+                    container.add_css_class("critical");
+                } else {
+                    container.remove_css_class("critical");
+                }
+
+                icon.set_text(icon_for(percent, is_charging));
                 IS_CHARGING.store(is_charging, Ordering::Relaxed);
             }
         }
