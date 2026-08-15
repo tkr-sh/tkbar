@@ -7,6 +7,10 @@ use {
         fs,
         path::{Path, PathBuf},
         str::FromStr,
+        sync::{
+            LazyLock,
+            atomic::{AtomicBool, AtomicU8},
+        },
         time::Duration,
     },
 };
@@ -73,22 +77,6 @@ impl Charging {
     }
 }
 
-impl Charging {
-    fn is_charging(self) -> bool {
-        Self::Charging == self
-    }
-
-    const fn to_css_class_name(self) -> &'static str {
-        match self {
-            Self::Full => "full",
-            Self::Charging => "charging",
-            Self::Discharging => "discharging",
-            Self::NotCharging => "not-charging",
-            Self::Unknown => "unknown",
-        }
-    }
-}
-
 impl FromStr for Charging {
     type Err = Infallible;
 
@@ -107,7 +95,8 @@ impl FromStr for Charging {
     }
 }
 
-const POLL_INTERVAL: Duration = Duration::from_millis(500);
+const POLL_INTERVAL_PERCENT: Duration = Duration::from_secs(10);
+const POLL_INTERVAL_CHARGING: Duration = Duration::from_millis(500);
 const CRITICAL_PERCENT: u8 = 15;
 
 pub fn battery() -> GtkBox {
@@ -130,8 +119,14 @@ pub fn battery() -> GtkBox {
         crate::log::warn("battery", "no battery found under /sys/class/power_supply");
     }
 
+    let acs = find_acs();
+    if acs.is_empty() {
+        crate::log::warn("ac", "no ac found under /sys/class/power_supply");
+    }
+
+
     let mut warned = false;
-    let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
+    let (_, rx) = super::spawn_poller(POLL_INTERVAL_PERCENT, move || {
         Some(
             devices
                 .iter()
@@ -158,6 +153,10 @@ pub fn battery() -> GtkBox {
         )
     });
 
+    let (_, rx_ac) = super::spawn_poller(POLL_INTERVAL_CHARGING, move || {
+        Some(acs.iter().any(|ac| read_online(ac) == Some(true)))
+    });
+
     glib::spawn_future_local(glib::clone!(
         #[weak]
         container,
@@ -174,26 +173,50 @@ pub fn battery() -> GtkBox {
                     },
                     BatteryState::Present(battery) => {
                         container.set_visible(true);
-                        icon.set_text(icon_for(battery.percent(), battery.charging.is_charging()));
+                        let is_charging = IS_CHARGING.load(std::sync::atomic::Ordering::Relaxed);
+                        icon.set_text(icon_for(battery.percent(), is_charging));
                         value.set_text(&battery.percent().to_string());
 
-                        container
-                            .set_css_classes(&["battery", battery.charging.to_css_class_name()]);
-
-                        if !battery.charging.is_charging() && battery.percent() <= CRITICAL_PERCENT
-                        {
+                        if !is_charging && battery.percent() <= CRITICAL_PERCENT {
                             container.add_css_class("critical");
                         } else {
                             container.remove_css_class("critical");
                         }
+
+                        PERCENT.swap(battery.percent(), std::sync::atomic::Ordering::Relaxed);
                     },
                 }
             }
         }
     ));
 
+    glib::spawn_future_local(glib::clone!(
+        #[weak]
+        container,
+        #[weak]
+        icon,
+        #[upgrade_or_default]
+        async move {
+            while let Ok(is_charging) = rx_ac.recv().await {
+                if is_charging {
+                    container.add_css_class("charging");
+                } else {
+                    container.remove_css_class("charging");
+                }
+                icon.set_text(icon_for(
+                    PERCENT.load(std::sync::atomic::Ordering::Relaxed),
+                    is_charging,
+                ));
+                IS_CHARGING.swap(is_charging, std::sync::atomic::Ordering::Relaxed);
+            }
+        }
+    ));
+
     container
 }
+
+static IS_CHARGING: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(false));
+static PERCENT: LazyLock<AtomicU8> = LazyLock::new(|| AtomicU8::new(100));
 
 #[allow(
     clippy::wildcard_in_or_patterns,
@@ -245,7 +268,7 @@ fn find_batteries() -> Vec<PathBuf> {
         .collect()
 }
 
-fn find_ac() -> Vec<PathBuf> {
+fn find_acs() -> Vec<PathBuf> {
     let Ok(sys_power_supply_dir) = fs::read_dir("/sys/class/power_supply") else {
         return Vec::default();
     };
