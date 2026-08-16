@@ -76,7 +76,7 @@ pub fn volume() -> GtkBox {
     let click = GestureClick::new();
     let click_tx = tx.clone();
     click.connect_released(move |_, _, _, _| {
-        wpctl(&["set-mute", SINK, "toggle"], click_tx.clone());
+        wpctl(["set-mute", SINK, "toggle"].as_slice(), click_tx.clone());
     });
     container.add_controller(click);
 
@@ -84,9 +84,25 @@ pub fn volume() -> GtkBox {
     let scroll_tx = tx.clone();
     scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            wpctl(&["set-volume", SINK, "3%+"], scroll_tx.clone());
+            wpctl(
+                [
+                    "set-volume",
+                    SINK,
+                    &format!("{}%+", CONFIG.on_scroll_volume_step),
+                ]
+                .as_slice(),
+                scroll_tx.clone(),
+            );
         } else {
-            wpctl(&["set-volume", SINK, "3%-"], scroll_tx.clone());
+            wpctl(
+                [
+                    "set-volume",
+                    SINK,
+                    &format!("{}%-", CONFIG.on_scroll_volume_step),
+                ]
+                .as_slice(),
+                scroll_tx.clone(),
+            );
         }
         glib::Propagation::Stop
     });

@@ -96,9 +96,17 @@ pub fn brightness() -> GtkBox {
     let scroll_device = device.clone();
     scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            brightnessctl("5%+", scroll_device.clone(), scroll_tx.clone());
+            brightnessctl(
+                &format!("{}%+", CONFIG.on_scroll_brightness_step),
+                scroll_device.clone(),
+                scroll_tx.clone(),
+            );
         } else {
-            brightnessctl("5%-", scroll_device.clone(), scroll_tx.clone());
+            brightnessctl(
+                &format!("{}%-", CONFIG.on_scroll_brightness_step),
+                scroll_device.clone(),
+                scroll_tx.clone(),
+            );
         }
         glib::Propagation::Stop
     });

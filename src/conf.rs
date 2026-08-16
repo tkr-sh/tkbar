@@ -25,6 +25,10 @@ pub struct Config {
     pub should_show_empty_workspace: bool,
     #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
+    #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    pub on_scroll_brightness_step: u8,
+    #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    pub on_scroll_volume_step: u8,
     #[cfg_attr(feature = "config", serde(default))]
     #[cfg_attr(
         not(any(feature = "niri", feature = "hyprland", feature = "sway")),
@@ -85,6 +89,8 @@ impl Config {
             bar_size_px: default_bar_size_px(),
             components: default_components(),
             security: Security::default(),
+            on_scroll_volume_step: default_3(),
+            on_scroll_brightness_step: default_3(),
         }
     }
 }
@@ -157,6 +163,10 @@ pub(crate) const fn default_bar_size_px() -> usize {
 
 pub(crate) const fn default_true() -> bool {
     true
+}
+
+pub(crate) const fn default_3() -> u8 {
+    3
 }
 
 fn default_components() -> Vec<Component> {
