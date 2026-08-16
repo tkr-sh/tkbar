@@ -68,7 +68,7 @@
 
             # tkbar.packages.${system}.default.override {
             #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
-            #   workspace = "hyprland";         # one of: niri hyprland
+            #   workspace = "hyprland";         # one of: niri hyprland sway
             #   withConfig = false;             # set false to drop the optional TOML/CSS config
             # }
             packages.default = pkgs.lib.makeOverridable

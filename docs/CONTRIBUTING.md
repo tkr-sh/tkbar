@@ -25,7 +25,7 @@ See the the README's [Security](../README.md#security) section and
 
 ## Feature gating
 
-There are two categories of features in [`Cargo.toml`](../Cargo.toml):
+There are three categories of features in [`Cargo.toml`](../Cargo.toml):
 
 - `config` — the optional TOML/CSS configuration. It pulls in `directories`,
   `serde`, and `toml` (all `optional = true` dependencies already present in
@@ -33,8 +33,13 @@ There are two categories of features in [`Cargo.toml`](../Cargo.toml):
 - Exactly one of ten color features: `black`, `blue`, `cyan`, `green`,
   `orange`, `pink`, `purple`, `red`, `white`, `yellow`. This set is the
   compiled-in base stylesheet.
+- The workspace backend: at most one of `niri`, `hyprland`, `sway`. The
+  workspace strip code lives in `src/ui/components/workspaces/`, one module
+  per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
+  model.
 
-The default is `black` + `config` (`default = ["black", "config"]`).
+The default is `black` + `config` + `niri`
+(`default = ["black", "config", "niri"]`).
 
 **Exactly one color must be enabled.** This is enforced by a `const` assert in
 [`src/lib.rs`](../src/lib.rs):

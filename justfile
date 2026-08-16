@@ -68,6 +68,7 @@ ci-check:
 ci-clippy-features:
     cargo clippy --locked --no-default-features --features config,hyprland,black -- -Dwarnings
     cargo clippy --locked --no-default-features --features red -- -Dwarnings
+    cargo clippy --locked --no-default-features --features config,sway,black -- -Dwarnings
 
 [group: 'ci']
 ci-clippy:

@@ -22,9 +22,10 @@ appreciated — allow a reasonable window before public discussion.
 ## Threat model
 
 **Trusted:** the Linux kernel, your user account, the Wayland compositor
-(niri), and everything installed on the system (libraries, fonts, the tools in
-`PATH`). If any of those is compromised, no userspace status bar can defend
-you. A malicious compositor can read your screen and input for *any* client.
+(niri, Hyprland, or sway), and everything installed on the system (libraries,
+fonts, the tools in `PATH`). If any of those is compromised, no userspace
+status bar can defend you. A malicious compositor can read your screen and
+input for *any* client.
 
 **Untrusted data that reaches the bar:**
 
@@ -36,8 +37,10 @@ you. A malicious compositor can read your screen and input for *any* client.
 3. **The configuration file** — writable by anything with access to your home
    directory.
 
-The bar itself opens no sockets, speaks no network protocol, and never opens
-files based on data it received.
+The bar opens no *network* sockets, speaks no network protocol, and never opens
+files based on data it received. The only socket it holds is the Unix IPC
+socket to the compositor (niri/Hyprland/sway), which is the same trusted path
+the wayland connection itself uses.
 
 ## Enforced security properties
 

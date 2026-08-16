@@ -123,10 +123,13 @@ const fn workspace_backend_count() -> usize {
     if cfg!(feature = "hyprland") {
         n += 1;
     }
+    if cfg!(feature = "sway") {
+        n += 1;
+    }
     n
 }
 
 const _: () = assert!(
     workspace_backend_count() <= 1,
-    "zero or one of the workspace backends must be enabled: niri, hyprland"
+    "zero or one of the workspace backends must be enabled: niri, hyprland, sway"
 );

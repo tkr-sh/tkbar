@@ -59,10 +59,11 @@ Configuration is optional and deliberately limited: a single TOML file can reord
 
 ## Supported compositors
 
-`tkbar` is a Wayland status bar. It currently supports two compositors, selected at build time via Cargo features:
+`tkbar` is a Wayland status bar. It currently supports three compositors, selected at build time via Cargo features:
 
 - [niri](https://github.com/YaLTeR/niri) (default)
 - [Hyprland](https://github.com/hyprwm/Hyprland)
+- [sway](https://github.com/swaywm/sway)
 
 Other Wayland compositors may be supported in the future through additional workspace backends.
 
@@ -79,7 +80,7 @@ The bar aims for a minimal dependency tree: every crate and library is code that
 | gtk4-layer-shell >= 1.0 | C library implementing the layer-shell protocol |
 | glib | comes with GTK4 |
 
-With the default `config` feature, three direct Rust crates are added: `directories`, `serde`, `toml`. Of these, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code. `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. Build with `--no-default-features` to drop all three entirely: no TOML parser is then linked at all.
+With the default `config` feature, three direct Rust crates are added: `directories`, `serde`, `toml`. Of these, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code. `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features` to drop the `config` crates entirely: no TOML parser is then linked at all.
 
 ### Run-time
 
@@ -87,8 +88,8 @@ With the default `config` feature, three direct Rust crates are added: `director
 | --- | --- | --- |
 | GTK4 / Pango / Cairo / FreeType | linked, renders everything | large audited C codebase, keep it updated |
 | gtk4-layer-shell | linked, positions the window | small C library |
-| a Wayland compositor ([niri](https://github.com/YaLTeR/niri) or [Hyprland](https://github.com/hyprwm/Hyprland)) | Wayland protocol | fully trusted, see [SECURITY.md](docs/SECURITY.md) |
-| the compositor's IPC (niri IPC / Hyprland IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
+| a Wayland compositor ([niri](https://github.com/YaLTeR/niri), [Hyprland](https://github.com/hyprwm/Hyprland), or [sway](https://github.com/swaywm/sway)) | Wayland protocol | fully trusted, see [SECURITY.md](docs/SECURITY.md) |
+| the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | `wpctl` (WirePlumber) | spawned to get/set volume and mute | local daemon client, output parsed defensively |
 | `brightnessctl` | spawned to set backlight | writes to sysfs, its output is never parsed |
 | `iwctl` (iwd) | spawned to read the Wi-Fi state | output parsed, carries untrusted data (SSID) |

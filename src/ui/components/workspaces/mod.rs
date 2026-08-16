@@ -11,6 +11,8 @@ pub(super) const WORKSPACE_COUNT: u8 = 10;
 mod hypr;
 #[cfg(feature = "niri")]
 mod niri;
+#[cfg(feature = "sway")]
+mod sway;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(
@@ -41,6 +43,11 @@ pub fn workspaces() -> GtkBox {
         #[cfg(feature = "hyprland")]
         if let Err(e) = hypr::event_loop(&tx) {
             crate::log::warn("workspaces", &format!("hyprland IPC error: {e}"));
+        }
+
+        #[cfg(feature = "sway")]
+        if let Err(e) = sway::event_loop(&tx) {
+            crate::log::warn("workspaces", &format!("sway IPC error: {e}"));
         }
     });
 
@@ -88,5 +95,8 @@ fn focus_workspace(id: u64) {
 
         #[cfg(feature = "hyprland")]
         hypr::focus_workspace(id);
+
+        #[cfg(feature = "sway")]
+        sway::focus_workspace(id);
     });
 }

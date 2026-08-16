@@ -19,7 +19,7 @@ pub struct Config {
     /// When a workspace is empty, should it be shown ?
     #[cfg_attr(feature = "config", serde(default = "default_true"))]
     #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland")),
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
         expect(dead_code, reason = "Unused when no WM supported")
     )]
     pub should_show_empty_workspace: bool,
@@ -27,7 +27,7 @@ pub struct Config {
     pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default))]
     #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland")),
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
         expect(
             dead_code,
             reason = "Unused when no WM supported. Might change when more features are added to security."
@@ -62,7 +62,7 @@ pub struct Security {
     /// When disabled (the safe default), only the numeric workspace ID is
     /// displayed and no untrusted string reaches the rendering pipeline.
     #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland")),
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
         expect(dead_code, reason = "Unused when no WM supported")
     )]
     pub should_allow_workspace_label: bool,
@@ -162,7 +162,7 @@ pub(crate) const fn default_true() -> bool {
 fn default_components() -> Vec<Component> {
     vec![
         Component::Logo('󱄅'),
-        #[cfg(any(feature = "niri", feature = "hyprland"))]
+        #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
         Component::Workspaces,
         Component::Spacer,
         Component::Battery,

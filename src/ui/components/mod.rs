@@ -2,10 +2,10 @@ mod battery;
 mod brightness;
 mod volume;
 mod wifi;
-#[cfg(any(feature = "niri", feature = "hyprland"))]
+#[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 mod workspaces;
 
-#[cfg(any(feature = "niri", feature = "hyprland"))]
+#[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 pub use workspaces::workspaces;
 use {
     crate::conf::CONFIG,
@@ -19,7 +19,7 @@ pub use {battery::battery, brightness::brightness, volume::volume, wifi::wifi};
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 pub enum Component {
     Logo(char),
-    #[cfg(any(feature = "niri", feature = "hyprland"))]
+    #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
     Workspaces,
     Spacer,
     Battery,
@@ -38,7 +38,7 @@ impl Component {
                 logo.set_xalign(0.45);
                 bar.append(&logo);
             },
-            #[cfg(any(feature = "niri", feature = "hyprland"))]
+            #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
             Component::Workspaces => bar.append(&workspaces()),
             Component::Spacer => bar.append(&spacer()),
             Component::Battery => bar.append(&battery()),

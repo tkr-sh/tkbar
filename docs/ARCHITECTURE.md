@@ -1,8 +1,8 @@
 # Architecture
 
-A minimalist GTK4 layer-shell status bar for the `niri` Wayland compositor. The
-whole bar is a single window that is a GTK `ApplicationWindow` registered as a
-layer-shell surface.
+A minimalist GTK4 layer-shell status bar for the `niri`, `Hyprland`, and `sway`
+Wayland compositors. The whole bar is a single window that is a GTK
+`ApplicationWindow` registered as a layer-shell surface.
 
 ## Crate layout
 
@@ -26,7 +26,10 @@ src/
 │       ├── brightness.rs  backlight percent from sysfs + brightnessctl
 │       ├── volume.rs      wireplumber volume/mute via wpctl
 │       ├── wifi.rs        SSID/signal via iwctl
-│       └── workspaces.rs  niri IPC workspace strip
+│       └── workspaces/    per-compositor workspace strip (feature-gated backend)
+│           ├── hypr.rs    Hyprland IPC (hyprland feature)
+│           ├── niri.rs    niri IPC (niri feature)
+│           └── sway.rs    sway/i3 IPC via swayipc (sway feature)
 ```
 
 - **`main.rs`** — `Application::builder().application_id(APP_ID)`; on startup
@@ -66,13 +69,24 @@ the container is alive. Used by `battery`, `brightness`, `volume`, and `wifi`.
 
 Poll intervals: `battery`/`brightness` 500 ms, `volume` 500 ms, `wifi` 5 s.
 
-### 2. Event-driven pattern (`workspaces.rs`)
+### 2. Event-driven pattern (`workspaces/`)
 
-`workspaces` opens a long-lived niri IPC `Socket`, sends an `EventStream`
-request, and reads events (`WorkspacesChanged`, `WorkspaceActivated`,
-`WorkspaceActiveWindowChanged`) on a dedicated thread, feeding a channel. The
+The `workspaces` backend opens a long-lived IPC socket to the compositor and
+subscribes to workspace/window events, feeding a channel on a dedicated thread. The
 GTK side rebuilds the workspace buttons on each update. Click handlers spawn a
 thread per `focus_workspace` call so the main loop never blocks on IPC.
+
+Exactly one backend is compiled in at build time (`niri`, `hyprland`, or
+`sway`). Each exposes the same pair of functions — `event_loop(tx)` and
+`focus_workspace(id)` — over the shared `Ws` model in `workspaces/mod.rs`:
+
+- `niri.rs` sends an `EventStream` request and reads `WorkspacesChanged`/
+  `WorkspaceActivated`/`WorkspaceActiveWindowChanged` events.
+- `hypr.rs` uses the `hyprland` event listener and reports the workspace window
+  count directly from the IPC data.
+- `sway.rs` uses `swayipc`: subscribing consumes the connection, so each
+  snapshot opens a fresh one; since `get_workspaces` exposes no window count, a
+  `get_tree()` walk counts leaf containers per workspace to derive `is_active`.
 
 Both patterns guarantee the GTK main loop only ever does cheap widget updates.
 
@@ -123,4 +137,4 @@ at `STYLE_PROVIDER_PRIORITY_USER`.
 7. Run `just check` and confirm CI (`just dagger`) passes.
 
 If the component polls or shells out, prefer the `spawn_poller` helper; if it
-subscribes to niri events, model it on `workspaces.rs`.
+subscribes to compositor IPC, model it on `workspaces/`.
