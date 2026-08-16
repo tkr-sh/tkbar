@@ -11,11 +11,7 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
-    std::{
-        fmt::Write as _,
-        thread,
-        time::{Duration, SystemTime, UNIX_EPOCH},
-    },
+    std::{fmt::Write as _, thread, time::Duration},
 };
 pub use {battery::battery, brightness::brightness, volume::volume, wifi::wifi};
 
@@ -126,15 +122,13 @@ fn update_clock(label: &Label, buf: &mut String) {
 
 
 fn get_hms_now() -> (u8, u8, u8) {
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_or(0, |d| d.as_secs());
+    let Ok(now) = glib::DateTime::now_local() else {
+        return (0, 0, 0);
+    };
 
-    let day_secs = secs % 86_400;
-
-    let h = u8::try_from(day_secs / 3_600).unwrap_or_default();
-    let m = u8::try_from((day_secs % 3_600) / 60).unwrap_or_default();
-    let s = u8::try_from(day_secs % 60).unwrap_or_default();
-
-    (h, m, s)
+    (
+        u8::try_from(now.hour()).unwrap_or_default(),
+        u8::try_from(now.minute()).unwrap_or_default(),
+        u8::try_from(now.second()).unwrap_or_default(),
+    )
 }
