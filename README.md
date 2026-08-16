@@ -7,13 +7,13 @@
 <p align="center">
     <a href="https://github.com/tkr-sh/tkbar">
         <img
-            src="https://img.shields.io/github/v/release/tkr-sh/tkbar?colorA=363a4f&colorB=a6da95&style=for-the-badge&logo=github&logoColor=cad3f5"
+            src="https://img.shields.io/github/v/release/tkr-sh/tkbar?colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=github&logoColor=cad3f5"
             alt="github release"
         />
     </a>
     <a href="https://github.com/tkr-sh/tkbar/actions">
         <img
-            src="https://img.shields.io/github/actions/workflow/status/tkr-sh/tkbar/ci.yml?branch=main&colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=rust&logoColor=cad3f5"
+            src="https://img.shields.io/github/actions/workflow/status/tkr-sh/tkbar/ci.yml?branch=main&colorA=363a4f&colorB=a6da95&style=for-the-badge&logo=rust&logoColor=cad3f5"
             alt="ci status"
         />
     </a>
