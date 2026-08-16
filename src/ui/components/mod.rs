@@ -11,7 +11,11 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
-    std::{fmt::Write as _, thread, time::Duration},
+    std::{
+        fmt::Write as _,
+        thread,
+        time::{Duration, SystemTime, UNIX_EPOCH},
+    },
 };
 pub use {battery::battery, brightness::brightness, volume::volume, wifi::wifi};
 
@@ -109,18 +113,28 @@ pub fn clock() -> Label {
 
 
 fn update_clock(label: &Label, buf: &mut String) {
-    let now = chrono::Local::now();
+    let (h, m, s) = get_hms_now();
     buf.clear();
-    let _ = write!(
-        buf,
-        "{}",
-        now.format(
-            if CONFIG.position.orientation() == Orientation::Horizontal {
-                "%H %M %S"
-            } else {
-                "%H\n%M\n%S"
-            }
-        )
-    );
+    let c = if CONFIG.position.orientation() == Orientation::Horizontal {
+        ' '
+    } else {
+        '\n'
+    };
+    let _ = write!(buf, "{h:02}{c}{m:02}{c}{s:02}",);
     label.set_text(buf);
+}
+
+
+fn get_hms_now() -> (u8, u8, u8) {
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+
+    let day_secs = secs % 86_400;
+
+    let h = u8::try_from(day_secs / 3_600).unwrap_or_default();
+    let m = u8::try_from((day_secs % 3_600) / 60).unwrap_or_default();
+    let s = u8::try_from(day_secs % 60).unwrap_or_default();
+
+    (h, m, s)
 }
