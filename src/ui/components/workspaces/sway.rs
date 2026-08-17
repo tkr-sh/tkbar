@@ -125,8 +125,7 @@ pub(super) fn focus_workspace(id: u64) {
     };
 
     let cmd = match workspaces.iter().find(|ws| ws.id == id) {
-        Some(ws) if ws.num > 0 => format!("workspace number {}", ws.num),
-        Some(ws) => format!("workspace \"{}\"", ws.name),
+        Some(ws) => format!("workspace number {}", ws.num),
         None => format!("workspace number {id}"),
     };
 
