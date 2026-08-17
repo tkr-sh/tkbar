@@ -58,7 +58,7 @@ fn ipc_loop(tx: &async_channel::Sender<Vec<Ws>>) -> std::io::Result<()> {
                     ws.is_active = active_window_id.is_some();
                 }
             },
-            _ => {},
+            _ => continue,
         }
 
         if CONFIG.behaviour.should_show_empty_workspace {
