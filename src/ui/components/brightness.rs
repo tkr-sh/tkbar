@@ -22,7 +22,7 @@ enum BrightnessState {
 }
 
 pub fn brightness() -> GtkBox {
-    let container = GtkBox::new(CONFIG.position.orientation(), 2);
+    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("brightness");
 
     let icon = Label::new(Some("\u{f00df}"));
@@ -97,13 +97,13 @@ pub fn brightness() -> GtkBox {
     scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
             brightnessctl(
-                &format!("{}%+", CONFIG.on_scroll_brightness_step),
+                &format!("{}%+", CONFIG.behaviour.on_scroll_brightness_step),
                 scroll_device.clone(),
                 scroll_tx.clone(),
             );
         } else {
             brightnessctl(
-                &format!("{}%-", CONFIG.on_scroll_brightness_step),
+                &format!("{}%-", CONFIG.behaviour.on_scroll_brightness_step),
                 scroll_device.clone(),
                 scroll_tx.clone(),
             );

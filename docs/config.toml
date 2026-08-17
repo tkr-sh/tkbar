@@ -1,0 +1,22 @@
+[style]
+position = "left"
+bar_size_px = 72
+
+[behaviour]
+components = [
+    { logo = "󱄅" },
+    "workspaces",
+    "spacer",
+    "battery",
+    "wifi",
+    "brightness",
+    "volume",
+    "clock",
+]
+should_show_empty_workspace = true
+on_scroll_brightness_step = 3
+on_scroll_volume_step = 3
+workspace_count = 10
+
+[security]
+should_allow_workspace_label = false

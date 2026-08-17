@@ -9,6 +9,7 @@ mod components;
 pub(crate) use components::Component;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 #[cfg_attr(
@@ -45,11 +46,11 @@ impl BarPosition {
 }
 
 pub fn build_window(app: &Application) {
-    let bar_size = i32::try_from(CONFIG.bar_size_px)
+    let bar_size = i32::try_from(CONFIG.style.bar_size_px)
         .unwrap_or_else(|_| i32::try_from(crate::conf::default_bar_size_px()).unwrap_or_default());
 
     let mut builder = ApplicationWindow::builder().application(app);
-    builder = match CONFIG.position {
+    builder = match CONFIG.style.position {
         BarPosition::Left | BarPosition::Right => builder.default_width(bar_size),
         BarPosition::Top | BarPosition::Bottom => builder.default_height(bar_size),
     };
@@ -59,16 +60,16 @@ pub fn build_window(app: &Application) {
     window.set_layer(Layer::Top);
     window.set_namespace("tkbar");
 
-    for edge in CONFIG.position.anchors() {
+    for edge in CONFIG.style.position.anchors() {
         window.set_anchor(edge, true);
     }
 
     window.auto_exclusive_zone_enable();
 
-    let bar = GtkBox::new(CONFIG.position.orientation(), 8);
+    let bar = GtkBox::new(CONFIG.style.position.orientation(), 8);
     bar.add_css_class("bar");
 
-    if CONFIG.position.orientation() == Orientation::Vertical {
+    if CONFIG.style.position.orientation() == Orientation::Vertical {
         bar.add_css_class("vertical");
     } else {
         bar.add_css_class("horizontal");
@@ -81,7 +82,7 @@ pub fn build_window(app: &Application) {
 }
 
 pub fn build_inner_window(bar: &GtkBox) {
-    for component in &crate::conf::CONFIG.components {
+    for component in &crate::conf::CONFIG.behaviour.components {
         component.add_to_bar(bar);
     }
 }

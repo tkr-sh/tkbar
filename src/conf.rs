@@ -11,42 +11,58 @@ use crate::ui::{BarPosition, Component};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
 pub struct Config {
-    #[cfg_attr(feature = "config", serde(default = "default_components"))]
-    pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default))]
-    pub position: BarPosition,
-    #[cfg_attr(feature = "config", serde(default = "default_bar_size_px"))]
-    pub bar_size_px: usize,
-    /// When a workspace is empty, should it be shown ?
-    #[cfg_attr(feature = "config", serde(default = "default_true"))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(dead_code, reason = "Unused when no WM supported")
-    )]
-    pub should_show_empty_workspace: bool,
-    #[cfg_attr(feature = "config", serde(default = "default_3"))]
-    pub on_scroll_brightness_step: u8,
-    #[cfg_attr(feature = "config", serde(default = "default_3"))]
-    pub on_scroll_volume_step: u8,
-    #[cfg_attr(feature = "config", serde(default = "default_3"))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(dead_code, reason = "Unused when no WM supported")
-    )]
-    pub workspace_count: u8,
+    pub style: Style,
     #[cfg_attr(feature = "config", serde(default))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(
-            dead_code,
-            reason = "Unused when no WM supported. Might change when more features are added to security."
-        )
-    )]
+    pub behaviour: Behaviour,
+    #[cfg_attr(feature = "config", serde(default))]
+    // #[cfg_attr(
+    //     not(any(feature = "niri", feature = "hyprland", feature = "sway",)),
+    //     expect(
+    //         dead_code,
+    //         reason = "Unused when no WM supported. Might change when more features are added to security."
+    //     )
+    // )]
     pub security: Security,
 }
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
+pub struct Behaviour {
+    // #[cfg_attr(feature = "config", serde(default = "default_components"))]
+    pub components: Vec<Component>,
+    /// When a workspace is empty, should it be shown ?
+    // #[cfg_attr(feature = "config", serde(default = "default_true"))]
+    // #[cfg_attr(
+    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+    //     expect(dead_code, reason = "Unused when no WM supported")
+    // )]
+    pub should_show_empty_workspace: bool,
+    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    pub on_scroll_brightness_step: u8,
+    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    pub on_scroll_volume_step: u8,
+    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    // #[cfg_attr(
+    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+    //     expect(dead_code, reason = "Unused when no WM supported")
+    // )]
+    pub workspace_count: u8,
+}
+
+#[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
+pub struct Style {
+    #[cfg_attr(feature = "config", serde(default))]
+    pub position: BarPosition,
+    #[cfg_attr(feature = "config", serde(default = "default_bar_size_px"))]
+    pub bar_size_px: usize,
+}
+
+#[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
 #[cfg_attr(feature = "config", serde(deny_unknown_fields))]
 pub struct Security {
     /// Whether to display custom workspace names (labels) instead of numeric IDs.
@@ -71,11 +87,32 @@ pub struct Security {
     ///
     /// When disabled (the safe default), only the numeric workspace ID is
     /// displayed and no untrusted string reaches the rendering pipeline.
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(dead_code, reason = "Unused when no WM supported")
-    )]
+    // #[cfg_attr(
+    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+    //     expect(dead_code, reason = "Unused when no WM supported")
+    // )]
     pub should_allow_workspace_label: bool,
+}
+
+impl Default for Style {
+    fn default() -> Self {
+        Self {
+            position: BarPosition::default(),
+            bar_size_px: default_bar_size_px(),
+        }
+    }
+}
+
+impl Default for Behaviour {
+    fn default() -> Self {
+        Self {
+            should_show_empty_workspace: default_true(),
+            components: default_components(),
+            on_scroll_volume_step: default_3(),
+            on_scroll_brightness_step: default_3(),
+            workspace_count: default_10(),
+        }
+    }
 }
 
 #[allow(clippy::derivable_impls, reason = "Make declaration explicit")]
@@ -88,16 +125,11 @@ impl Default for Security {
 }
 
 impl Config {
-    fn hardcoded() -> Self {
+    pub fn hardcoded() -> Self {
         Config {
-            should_show_empty_workspace: default_true(),
-            position: BarPosition::default(),
-            bar_size_px: default_bar_size_px(),
-            components: default_components(),
+            style: Style::default(),
             security: Security::default(),
-            on_scroll_volume_step: default_3(),
-            on_scroll_brightness_step: default_3(),
-            workspace_count: default_10(),
+            behaviour: Behaviour::default(),
         }
     }
 }
@@ -200,29 +232,13 @@ mod tests {
 
     #[test]
     fn parses_full_config() {
-        let config: Config = toml::from_str(
-            r#"
-            position = "top"
-            bar_size_px = 90
-            components = [
-                { logo = "󱄅" },
-                "workspaces",
-                "spacer",
-                "battery",
-                "wifi",
-                "brightness",
-                "volume",
-                "clock",
-            ]
-            "#,
-        )
-        .unwrap();
+        let config: Config = toml::from_str(include_str!("../docs/config.toml")).unwrap();
 
-        assert_eq!(config.position, BarPosition::Top);
-        assert_eq!(config.bar_size_px, 90);
-        assert_eq!(config.components.len(), 8);
+        assert_eq!(config.style.position, BarPosition::Left);
+        assert_eq!(config.style.bar_size_px, 72);
+        assert_eq!(config.behaviour.components.len(), 8);
         assert!(matches!(
-            config.components.first(),
+            config.behaviour.components.first(),
             Some(Component::Logo('󱄅'))
         ));
     }
@@ -230,9 +246,12 @@ mod tests {
     #[test]
     fn empty_file_falls_back_to_field_defaults() {
         let config: Config = toml::from_str("").unwrap();
-        assert_eq!(config.position, BarPosition::Left);
-        assert_eq!(config.bar_size_px, default_bar_size_px());
-        assert_eq!(config.components.len(), default_components().len());
+        assert_eq!(config.style.position, BarPosition::Left);
+        assert_eq!(config.style.bar_size_px, default_bar_size_px());
+        assert_eq!(
+            config.behaviour.components.len(),
+            default_components().len()
+        );
     }
 
     #[test]
@@ -253,9 +272,12 @@ mod tests {
     #[test]
     fn missing_file_falls_back_to_hardcoded() {
         let config = load_from(Some(std::path::Path::new("/nonexistent/tkbar.toml")));
-        assert_eq!(config.position, BarPosition::Left);
-        assert_eq!(config.bar_size_px, default_bar_size_px());
-        assert_eq!(config.components.len(), default_components().len());
+        assert_eq!(config.style.position, BarPosition::Left);
+        assert_eq!(config.style.bar_size_px, default_bar_size_px());
+        assert_eq!(
+            config.behaviour.components.len(),
+            default_components().len()
+        );
     }
 
     #[test]
@@ -263,11 +285,14 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("tkbar-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("config.toml");
-        std::fs::write(&path, "bar_size_px = 42\n").unwrap();
+        std::fs::write(&path, "[style]\nbar_size_px = 42\n").unwrap();
 
         let config = load_from(Some(&path));
-        assert_eq!(config.bar_size_px, 42);
-        assert_eq!(config.components.len(), default_components().len());
+        assert_eq!(config.style.bar_size_px, 42);
+        assert_eq!(
+            config.behaviour.components.len(),
+            default_components().len()
+        );
 
         std::fs::remove_dir_all(dir).unwrap();
     }

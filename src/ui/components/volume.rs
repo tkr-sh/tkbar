@@ -23,7 +23,7 @@ struct VolState {
 }
 
 pub fn volume() -> GtkBox {
-    let container = GtkBox::new(CONFIG.position.orientation(), 2);
+    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("volume");
 
     let icon = Label::new(Some("\u{f057f}"));
@@ -88,7 +88,7 @@ pub fn volume() -> GtkBox {
                 [
                     "set-volume",
                     SINK,
-                    &format!("{}%+", CONFIG.on_scroll_volume_step),
+                    &format!("{}%+", CONFIG.behaviour.on_scroll_volume_step),
                 ]
                 .as_slice(),
                 scroll_tx.clone(),
@@ -98,7 +98,7 @@ pub fn volume() -> GtkBox {
                 [
                     "set-volume",
                     SINK,
-                    &format!("{}%-", CONFIG.on_scroll_volume_step),
+                    &format!("{}%-", CONFIG.behaviour.on_scroll_volume_step),
                 ]
                 .as_slice(),
                 scroll_tx.clone(),

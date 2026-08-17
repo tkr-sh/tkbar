@@ -27,7 +27,7 @@ struct Ws {
 }
 
 pub fn workspaces() -> GtkBox {
-    let container = GtkBox::new(CONFIG.position.orientation(), 4);
+    let container = GtkBox::new(CONFIG.style.position.orientation(), 4);
     container.add_css_class("workspaces");
 
     let (tx, rx) = async_channel::unbounded::<Vec<Ws>>();
@@ -60,7 +60,10 @@ pub fn workspaces() -> GtkBox {
                 }
 
                 for ws in &list {
-                    if !CONFIG.should_show_empty_workspace && !ws.is_active && ws.is_focused {
+                    if !CONFIG.behaviour.should_show_empty_workspace &&
+                        !ws.is_active &&
+                        ws.is_focused
+                    {
                         continue;
                     }
 

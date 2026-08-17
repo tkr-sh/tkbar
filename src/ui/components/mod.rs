@@ -16,6 +16,7 @@ use {
 pub use {battery::battery, brightness::brightness, volume::volume, wifi::wifi};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
+#[cfg_attr(feature = "doc", derive(serde::Serialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
 pub enum Component {
     Logo(char),
@@ -78,7 +79,7 @@ where
 }
 
 pub fn spacer() -> GtkBox {
-    let spacer = GtkBox::new(CONFIG.position.orientation(), 0);
+    let spacer = GtkBox::new(CONFIG.style.position.orientation(), 0);
     spacer.set_vexpand(true);
     spacer.set_hexpand(true);
     spacer
@@ -111,7 +112,7 @@ pub fn clock() -> Label {
 fn update_clock(label: &Label, buf: &mut String) {
     let (h, m, s) = get_hms_now();
     buf.clear();
-    let c = if CONFIG.position.orientation() == Orientation::Horizontal {
+    let c = if CONFIG.style.position.orientation() == Orientation::Horizontal {
         ' '
     } else {
         '\n'

@@ -1,0 +1,8 @@
+[formatting]
+    column_width = 100
+
+    indent_entries = false
+    indent_string = "    "
+    indent_tables = true
+
+    allowed_blank_lines = 1

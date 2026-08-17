@@ -74,7 +74,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
         })
         .collect();
 
-    for idx in 1..=CONFIG.workspace_count {
+    for idx in 1..=CONFIG.behaviour.workspace_count {
         if list.iter().all(|wks| wks.id != u64::from(idx)) {
             list.push(Ws {
                 id: u64::from(idx),

@@ -14,7 +14,7 @@ enum WifiState {
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 pub fn wifi() -> GtkBox {
-    let container = GtkBox::new(CONFIG.position.orientation(), 2);
+    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("wifi");
 
     let icon = Label::new(Some("\u{f092d}"));

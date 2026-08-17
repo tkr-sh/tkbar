@@ -1,6 +1,5 @@
+pub use {crate::ui::build_window, conf::Config};
 use {gtk::CssProvider, gtk4 as gtk};
-
-pub use crate::ui::build_window;
 
 mod conf;
 mod log;

@@ -61,8 +61,8 @@ fn ipc_loop(tx: &async_channel::Sender<Vec<Ws>>) -> std::io::Result<()> {
             _ => {},
         }
 
-        if CONFIG.should_show_empty_workspace {
-            for idx in 1..=CONFIG.workspace_count {
+        if CONFIG.behaviour.should_show_empty_workspace {
+            for idx in 1..=CONFIG.behaviour.workspace_count {
                 if state.iter().all(|wks| wks.idx != idx) {
                     state.push(Ws {
                         id: u64::from(idx),

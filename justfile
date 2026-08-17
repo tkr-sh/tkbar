@@ -38,10 +38,18 @@ check:
     taplo fmt
 
 [group: 'check']
-fix:
+fix: &&fmt
     cargo clippy --fix --allow-staged
+
+[group: 'check']
+fmt: &&doc
     cargo fmt
-    taplo fmt
+    taplo fmt ...(fd -e toml | lines | where { $in != 'docs/config.toml' })
+
+[group: 'doc']
+doc:
+    cargo run --bin doc --features doc
+    taplo fmt --config ./docs/taplo.toml ./docs/taplo.toml
 
 # --- CI checks (non-destructive, --locked) ---
 
@@ -58,7 +66,8 @@ release version:
 [group: 'ci']
 ci-fmt:
     cargo fmt --check
-    taplo fmt --check
+    taplo fmt --check ...(fd -e toml | lines | where { $in != 'docs/config.toml' })
+    taplo fmt --check --config ./docs/taplo.toml ./docs/config.toml
 
 [group: 'ci']
 ci-check:
@@ -69,6 +78,7 @@ ci-clippy-features:
     cargo clippy --locked --no-default-features --features config,hyprland,black -- -Dwarnings
     cargo clippy --locked --no-default-features --features red -- -Dwarnings
     cargo clippy --locked --no-default-features --features config,sway,black -- -Dwarnings
+    cargo clippy --locked --no-default-features --features doc,purple --bin doc -- -Dwarnings
 
 [group: 'ci']
 ci-clippy:

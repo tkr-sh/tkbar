@@ -68,7 +68,7 @@ components = [
   parse error with line and column. Silently falling back would hide typos.
 
 The config is stored in a global `CONFIG: LazyLock<Config>` (`src/conf.rs`) and
-read by widgets through `CONFIG.position.orientation()` and friends.
+read by widgets through `CONFIG.style.position.orientation()` and friends.
 
 ## CSS overloading
 

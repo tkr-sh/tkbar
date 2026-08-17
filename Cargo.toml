@@ -1,4 +1,5 @@
 [package]
+    default-run = "tkbar"
     edition = "2024"
     name = "tkbar"
     version = "0.1.0"
@@ -25,7 +26,6 @@
     serde = { version = "1", features = ["derive"], optional = true }
     toml = { version = "1", optional = true }
 
-
 [features]
     config = ["dep:directories", "dep:serde", "dep:toml"]
     default = ["black", "config", "niri"]
@@ -47,6 +47,8 @@
     white = []
     yellow = []
 
+    # Only used to generate the default configuration
+    doc = ["config"]
 
 [profile.release]
     codegen-units = 1
@@ -54,6 +56,10 @@
     panic = "abort"
     strip = true
 
+[[bin]]
+    name = "doc"
+    path = "./docs/main.rs"
+    required-features = ["doc"]
 
 [workspace]
     members = ["ci"]

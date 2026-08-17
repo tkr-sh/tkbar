@@ -62,8 +62,8 @@ fn read_workspaces() -> swayipc::Fallible<Vec<Ws>> {
         })
         .collect();
 
-    if CONFIG.should_show_empty_workspace {
-        for idx in 1..=CONFIG.workspace_count {
+    if CONFIG.behaviour.should_show_empty_workspace {
+        for idx in 1..=CONFIG.behaviour.workspace_count {
             if list.iter().all(|wks| wks.idx != idx) {
                 list.push(Ws {
                     id: u64::from(idx),

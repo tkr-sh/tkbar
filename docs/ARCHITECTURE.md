@@ -97,8 +97,8 @@ main  →  CONFIG (LazyLock<Config>, conf.rs)  →  widgets
 ```
 
 Widgets read the global `CONFIG` directly, e.g.
-`CONFIG.position.orientation()` selects vertical/horizontal layout,
-`CONFIG.position.anchors()` sets the layer-shell edges, and `CONFIG.components`
+`CONFIG.style.position.orientation()` selects vertical/horizontal layout,
+`CONFIG.style.position.anchors()` sets the layer-shell edges, and `CONFIG.components`
 drives widget construction in `build_inner_window`.
 
 ## Theme system
