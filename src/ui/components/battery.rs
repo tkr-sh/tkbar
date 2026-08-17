@@ -27,7 +27,7 @@ struct BatteryData {
 
 impl BatteryData {
     fn percent(self) -> u8 {
-        let percent = self.energy_now.saturing_mul(100) /
+        let percent = self.energy_now.saturating_mul(100) /
             if self.energy_full == 0 {
                 1
             } else {
