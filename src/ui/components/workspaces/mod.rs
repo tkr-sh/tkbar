@@ -62,7 +62,7 @@ pub fn workspaces() -> GtkBox {
                 for ws in &list {
                     if !CONFIG.behaviour.should_show_empty_workspace &&
                         !ws.is_active &&
-                        ws.is_focused
+                        !ws.is_focused
                     {
                         continue;
                     }
