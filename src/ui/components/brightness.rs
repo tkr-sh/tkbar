@@ -165,7 +165,7 @@ fn read_percent(device: &std::path::Path) -> Option<u32> {
     if max == 0 {
         return None;
     }
-    Some((current * 100 + max / 2) / max)
+    Some((current.saturating_mul(100) + max / 2) / max)
 }
 
 fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<BrightnessState>) {
