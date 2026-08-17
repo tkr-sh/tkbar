@@ -51,10 +51,8 @@ fn read_workspaces() -> swayipc::Fallible<Vec<Ws>> {
                 idx: u8::try_from(ws.num).unwrap_or(0),
                 label: if CONFIG.security.should_allow_workspace_label {
                     ws.name
-                } else if ws.num > 0 {
-                    ws.num.to_string()
                 } else {
-                    ws.name
+                    ws.num.to_string()
                 },
                 is_active: counts.get(&ws.id).is_some_and(|count| *count > 0),
                 is_focused: ws.focused,
