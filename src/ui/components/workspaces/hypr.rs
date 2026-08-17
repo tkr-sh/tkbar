@@ -1,6 +1,6 @@
 use {
     super::Ws,
-    crate::ui::{CONFIG, components::workspaces::WORKSPACE_COUNT},
+    crate::ui::CONFIG,
     hyprland::{
         data::{Workspace, Workspaces},
         dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial},
@@ -74,7 +74,7 @@ fn read_workspaces() -> hyprland::Result<Vec<Ws>> {
         })
         .collect();
 
-    for idx in 1..=WORKSPACE_COUNT {
+    for idx in 1..=CONFIG.workspace_count {
         if list.iter().all(|wks| wks.id != u64::from(idx)) {
             list.push(Ws {
                 id: u64::from(idx),

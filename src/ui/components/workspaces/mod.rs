@@ -5,8 +5,6 @@ use {
     std::thread,
 };
 
-pub(super) const WORKSPACE_COUNT: u8 = 10;
-
 #[cfg(feature = "hyprland")]
 mod hypr;
 #[cfg(feature = "niri")]

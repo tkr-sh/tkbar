@@ -12,6 +12,8 @@ use crate::ui::{BarPosition, Component};
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(deny_unknown_fields))]
 pub struct Config {
+    #[cfg_attr(feature = "config", serde(default = "default_components"))]
+    pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default))]
     pub position: BarPosition,
     #[cfg_attr(feature = "config", serde(default = "default_bar_size_px"))]
@@ -23,12 +25,16 @@ pub struct Config {
         expect(dead_code, reason = "Unused when no WM supported")
     )]
     pub should_show_empty_workspace: bool,
-    #[cfg_attr(feature = "config", serde(default = "default_components"))]
-    pub components: Vec<Component>,
     #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_brightness_step: u8,
     #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_volume_step: u8,
+    #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+        expect(dead_code, reason = "Unused when no WM supported")
+    )]
+    pub workspace_count: u8,
     #[cfg_attr(feature = "config", serde(default))]
     #[cfg_attr(
         not(any(feature = "niri", feature = "hyprland", feature = "sway")),
@@ -91,6 +97,7 @@ impl Config {
             security: Security::default(),
             on_scroll_volume_step: default_3(),
             on_scroll_brightness_step: default_3(),
+            workspace_count: default_10(),
         }
     }
 }
@@ -167,6 +174,10 @@ pub(crate) const fn default_true() -> bool {
 
 pub(crate) const fn default_3() -> u8 {
     3
+}
+
+pub(crate) const fn default_10() -> u8 {
+    10
 }
 
 fn default_components() -> Vec<Component> {

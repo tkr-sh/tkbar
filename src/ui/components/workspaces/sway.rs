@@ -1,5 +1,5 @@
 use {
-    super::{WORKSPACE_COUNT, Ws},
+    super::Ws,
     crate::conf::CONFIG,
     std::collections::HashMap,
     swayipc::{Connection, Event, EventType, Node, NodeType},
@@ -63,7 +63,7 @@ fn read_workspaces() -> swayipc::Fallible<Vec<Ws>> {
         .collect();
 
     if CONFIG.should_show_empty_workspace {
-        for idx in 1..=WORKSPACE_COUNT {
+        for idx in 1..=CONFIG.workspace_count {
             if list.iter().all(|wks| wks.idx != idx) {
                 list.push(Ws {
                     id: u64::from(idx),
