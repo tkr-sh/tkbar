@@ -31,18 +31,16 @@ pub fn wifi() -> GtkBox {
 
     let mut warned = false;
     let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        device.as_ref().map(|device| {
-            match query(device) {
-                Some(state) => state,
-                None => {
-                    if !warned {
-                        crate::log::warn("wifi", &format!("iwctl query failed for {device}"));
-                        warned = true;
-                    }
-                    WifiState::Disconnected
-                },
-            }
-        })
+        match query() {
+            Some(state) => Some(state),
+            None => {
+                if !warned {
+                    crate::log::warn("wifi", "nl80211 query failed");
+                    warned = true;
+                }
+                Some(WifiState::Disconnected)
+            },
+        }
     });
 
     glib::spawn_future_local(glib::clone!(
@@ -79,52 +77,34 @@ fn find_wireless_device() -> Option<String> {
         .and_then(|e| e.file_name().into_string().ok())
 }
 
-fn query(device: &str) -> Option<WifiState> {
-    let out = Command::new("iwctl")
-        .args(["station", device, "show"])
-        .output()
-        .ok()?;
+fn query() -> Option<WifiState> {
+    let mut socket = neli_wifi::Socket::connect().ok()?;
+    let interfaces = socket.get_interfaces_info().ok()?;
 
-    parse_iwctl_show(&String::from_utf8_lossy(&out.stdout), device)
-}
-
-/// Parses `iwctl station <dev> show`. Typical (color-stripped) lines:
-///     State                 connected
-///     Connected network     MySSID
-///     AverageRSSI           -52 dBm      (recent iwd only)
-fn parse_iwctl_show(text: &str, device: &str) -> Option<WifiState> {
-    let text = strip_ansi(text);
-
-    let mut connected = false;
-    let mut ssid: Option<String> = None;
-    let mut rssi_dbm: Option<i32> = None;
-
-    for line in text.lines() {
-        let line = line.trim();
-        if let Some(v) = line.strip_prefix("State") {
-            connected = v.trim() == "connected";
-        } else if let Some(v) = line.strip_prefix("Connected network") {
-            let v = v.trim();
-            if !v.is_empty() {
-                ssid = Some(v.to_string());
-            }
-        } else if let Some(v) = line
-            .strip_prefix("AverageRSSI")
-            .or_else(|| line.strip_prefix("RSSI"))
-        {
-            rssi_dbm = v.split_whitespace().next().and_then(|n| n.parse().ok());
+    for iface in interfaces {
+        let (Some(index), Some(ssid)) = (iface.index, iface.ssid) else {
+            continue;
+        };
+        if ssid.is_empty() {
+            continue;
         }
+
+        let signal = socket
+            .get_station_info(index)
+            .ok()
+            .and_then(|stations| stations.into_iter().next())
+            .and_then(|s| s.average_signal.or(s.signal))
+            .map(|dbm| dbm_to_percent(i32::from(dbm)));
+
+        return Some(WifiState::Connected {
+            ssid: String::from_utf8_lossy(&ssid).into_owned(),
+            signal,
+        });
     }
 
-    if connected {
-        Some(WifiState::Connected {
-            ssid: ssid.unwrap_or_else(|| device.to_string()),
-            signal: rssi_dbm.map(dbm_to_percent),
-        })
-    } else {
-        Some(WifiState::Disconnected)
-    }
+    Some(WifiState::Disconnected)
 }
+
 
 fn dbm_to_percent(dbm: i32) -> u32 {
     let scaled = dbm.saturating_add(100).saturating_mul(2);
@@ -148,23 +128,6 @@ const fn icon_for(state: &WifiState) -> &'static str {
             }
         },
     }
-}
-
-fn strip_ansi(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut chars = s.chars();
-    while let Some(c) = chars.next() {
-        if c == '\u{1b}' {
-            for t in chars.by_ref() {
-                if t.is_ascii_alphabetic() {
-                    break;
-                }
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    out
 }
 
 #[cfg(test)]
