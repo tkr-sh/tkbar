@@ -69,17 +69,35 @@
             #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
             #   workspace = "hyprland";         # one of: niri hyprland sway
             #   withConfig = false;             # set false to drop the optional TOML/CSS config
+            #   components = [ "wifi" ];        # feature-gated components to build in
             # }
             packages.default = pkgs.lib.makeOverridable
-                ({ color ? "black", workspace ? "niri", withConfig ? true }:
-                rustPlatform.buildRustPackage {
+                ({ color ? "black", workspace ? "niri", withConfig ? true, components ? [ "wifi" ] }:
+                let
+                    # Component names mapping 1:1 to Cargo features. For now
+                    # only "wifi" is feature-gated; "brightness" and "audio"
+                    # will follow once their modules are gated.
+                    allowedComponents = [ "wifi" ];
+                    invalidComponents =
+                        builtins.filter (c: !(builtins.elem c allowedComponents)) components;
+                in
+                if invalidComponents != []
+                then throw (
+                    "tkbar: unsupported component(s) in 'components': "
+                    + builtins.concatStringsSep ", " invalidComponents
+                    + ". Allowed: " + builtins.concatStringsSep ", " allowedComponents
+                    + " (brightness and audio will follow once feature-gated)"
+                )
+                else rustPlatform.buildRustPackage {
                     pname = "tkbar";
                     version = "0.1.0";
                     src = ./.;
                     cargoLock.lockFile = ./Cargo.lock;
 
                     buildNoDefaultFeatures = true;
-                    buildFeatures = [ color workspace ] ++ pkgs.lib.optional withConfig "config";
+                    buildFeatures = [ color workspace ]
+                        ++ pkgs.lib.optional withConfig "config"
+                        ++ components;
 
                     # The bar renders icons from font glyphs and never loads
                     # images. Point gdk-pixbuf at an empty loader cache so

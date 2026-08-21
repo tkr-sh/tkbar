@@ -89,25 +89,34 @@ stylesheet is ignored; an unreadable one is logged as a warning and skipped.
 
 ## Feature opt-in/out via Nix
 
-The flake's `packages.default` is `makeOverridable` with `color` and
-`withConfig` parameters (see [`flake.nix`](../flake.nix)). A consumer flake
-selects the compiled-in theme and whether the optional TOML/CSS config is
-enabled — no forking required:
+The flake's `packages.default` is `makeOverridable` with `color`,
+`workspace`, `withConfig`, and `components` parameters (see
+[`flake.nix`](../flake.nix)). A consumer flake selects the compiled-in theme,
+the compositor backend, whether the optional TOML/CSS config is built in, and
+which feature-gated components ship — no forking required:
 
 ```nix
 tkbar.packages.${system}.default.override {
-  color = "purple";     # one of: black blue cyan green orange pink purple red white yellow
-  withConfig = false;   # set false to drop the optional TOML/CSS config
+  color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
+  workspace = "hyprland";  # one of: niri hyprland sway
+  withConfig = false;      # set false to drop the optional TOML/CSS config
+  components = [ "wifi" ]; # feature-gated components to build in; set [ ] to drop wifi
 }
 ```
 
 - `color` selects the compiled-in base theme (exactly one of the ten).
+- `workspace` selects the compositor backend (`"niri"`, `"hyprland"`, or
+  `"sway"`); exactly one is compiled in.
 - `withConfig` toggles the optional `config` feature.
+- `components` is the list of feature-gated components to build in. For now
+  only `"wifi"` is supported (a `"brightness"` and an `"audio"` component will
+  follow); set it to `[ ]` to ship a bar with no wifi widget. Each name maps
+  1:1 to a Cargo feature, and unsupported names fail the build with a message.
 
 The plain cargo equivalent is:
 
 ```sh
-cargo build --no-default-features --features purple,config
+cargo build --no-default-features --features purple,hyprland,wifi
 ```
 
 ## Adding a theme
