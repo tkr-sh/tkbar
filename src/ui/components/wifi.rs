@@ -136,4 +136,25 @@ mod tests {
         assert_eq!(dbm_to_percent(-50), 100);
         assert_eq!(dbm_to_percent(0), 100);
     }
+
+    #[test]
+    fn malicious_ssid_ansi_injection_is_inert() {
+        let out = ssid_to_string(b"\x1b[31mEVIL\x1b[0m");
+        assert!(out.chars().all(|c| !c.is_control()));
+        assert_eq!(out, "[31mEVIL[0m");
+    }
+
+    #[test]
+    fn malicious_ssid_control_chars_are_stripped() {
+        let out = ssid_to_string(b"\x01\x02Home\x7f\x0aNet\x00");
+        assert!(out.chars().all(|c| !c.is_control()));
+        assert_eq!(out, "HomeNet");
+    }
+
+    #[test]
+    fn malicious_ssid_invalid_utf8_does_not_panic() {
+        let out = ssid_to_string(&[0xff, 0xfe, 0xfa, b'A']);
+        assert!(out.chars().all(|c| !c.is_control()));
+        assert!(out.contains('A'));
+    }
 }
