@@ -50,7 +50,6 @@
                     # Runtime tools the bar shells out to
                     brightnessctl
                     wireplumber
-                    iwd
                 ];
                 nativeBuildInputs = with pkgs; [
                     pkg-config
@@ -111,7 +110,6 @@
                               pkgs.lib.makeBinPath [
                                   pkgs.brightnessctl
                                   pkgs.wireplumber
-                                  pkgs.iwd
                               ]
                           }
                     '';

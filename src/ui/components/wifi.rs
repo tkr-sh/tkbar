@@ -84,12 +84,19 @@ fn query() -> Option<WifiState> {
             .map(|dbm| dbm_to_percent(i32::from(dbm)));
 
         return Some(WifiState::Connected {
-            ssid: String::from_utf8_lossy(&ssid).into_owned(),
+            ssid: ssid_to_string(&ssid),
             signal,
         });
     }
 
     Some(WifiState::Disconnected)
+}
+
+fn ssid_to_string(ssid: &[u8]) -> String {
+    String::from_utf8_lossy(ssid)
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect()
 }
 
 

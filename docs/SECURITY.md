@@ -30,27 +30,31 @@ input for *any* client.
 **Untrusted data that reaches the bar:**
 
 1. **Wi-Fi SSIDs** — any nearby access point can broadcast an arbitrary SSID;
-   it reaches the bar through `iwctl` output. This is the only
-   remotely-influenced input.
+   it reaches the bar as raw, attacker-controlled bytes from the nl80211
+   netlink socket. This is the only remotely-influenced input.
 2. **Daemon responses** — `wpctl` output; local, but produced by daemons that
    talk to every local client.
 3. **The configuration file** — writable by anything with access to your home
    directory.
 
 The bar opens no *network* sockets, speaks no network protocol, and never opens
-files based on data it received. The only socket it holds is the Unix IPC
-socket to the compositor (niri/Hyprland/sway), which is the same trusted path
-the wayland connection itself uses.
+files based on data it received. The only sockets it holds are the Unix IPC
+socket to the compositor (niri/Hyprland/sway) — the same trusted path the
+wayland connection itself uses — and a `NETLINK_GENERIC` socket to the kernel
+for Wi-Fi state, which cannot reach a remote peer.
 
 ## Enforced security properties
 
 These are structural, compile-time or design constraints, not runtime checks:
 
 - **Safe Rust, no `unsafe`.** The crate contains no `unsafe` code.
-- **No panics on externally-influenced data.** Every parse of SSID, `wpctl`,
-  `iwctl`, or sysfs input is a fallible `parse().ok()?` chain that fails
-  closed — malformed input makes a widget keep its previous state, never crash
-  the bar. `panic = "abort"` is set in the release profile.
+- **No panics on externally-influenced data.** The Wi-Fi SSID arrives as raw,
+  attacker-controlled bytes from a nearby access point via nl80211; it is
+  decoded lossily and stripped of control characters, then only ever displayed
+  as a tooltip. `wpctl` and sysfs inputs are parsed with fallible
+  `parse().ok()?` chains that fail closed — malformed input makes a widget keep
+  its previous state, never crash the bar. `panic = "abort"` is set in the
+  release profile.
 - **No network code.** No HTTP, no DNS, no listening sockets.
 - **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no
   webview. GTK's image-loading machinery is neutered: at startup the bar points
@@ -60,8 +64,10 @@ These are structural, compile-time or design constraints, not runtime checks:
   (`include_str!`); the only runtime-loaded content is the optional
   `~/.config/tkbar/style.css` (behind the `config` feature), which is plain
   CSS data and cannot execute code.
-- **ANSI-stripping of the SSID.** The SSID is stripped of ANSI escape sequences
-  before parsing and only ever *displayed* as a tooltip, never interpreted.
+- **Control-character stripping of the SSID.** SSIDs are arbitrary
+  attacker-controlled bytes; they are stripped of control characters (including
+  ANSI escape sequences) before being *displayed* as a tooltip, never
+  interpreted.
 - **Strict typed config.** TOML has no code execution, aliases, or external
   includes; parsing is strict and typed (`deny_unknown_fields`). An attacker
   who can write your config can change the layout, and nothing more.
@@ -85,9 +91,10 @@ The README details this; the short version:
   the bar loads no images or remote content — gdk-pixbuf's image loader modules
   are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → empty cache), so no image
   parser code runs. Keep your system GTK updated.
-- **`PATH` hijacking** of the spawned `wpctl`, `brightnessctl`, and `iwctl`
-  would give code execution. Mitigated in the Nix package (pinned wrapper
-  `PATH`); elsewhere, keep your `PATH` sane.
+- **`PATH` hijacking** of the spawned `wpctl` and `brightnessctl` would give
+  code execution. Mitigated in the Nix package (pinned wrapper `PATH`);
+  elsewhere, keep your `PATH` sane. The Wi-Fi path doesn't spawn any process
+  (it talks to the kernel via netlink), so it has no `PATH` hijack surface.
 - A **malicious Wi-Fi SSID** traveling through a memory-safe parser has a worst
   realistic outcome of a misleading tooltip — UI confusion, not corruption.
 - A **compromised compositor** can overlay, spoof, or intercept anything; this

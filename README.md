@@ -92,8 +92,8 @@ With the default `config` feature, three direct Rust crates are added: `director
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | `wpctl` (WirePlumber) | spawned to get/set volume and mute | local daemon client, output parsed defensively |
 | `brightnessctl` | spawned to set backlight | writes to sysfs, its output is never parsed |
-| `iwctl` (iwd) | spawned to read the Wi-Fi state | output parsed, carries untrusted data (SSID) |
-| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`, `/sys/class/net`) | read directly | kernel-provided |
+| nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
+| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly | kernel-provided |
 
 All spawned tools are looked up in `PATH`. The Nix package wraps the binary so that `PATH` resolves them from pinned, absolute `/nix/store` paths.
 

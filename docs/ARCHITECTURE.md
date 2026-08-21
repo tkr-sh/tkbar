@@ -25,7 +25,7 @@ src/
 │       ├── battery.rs     battery percent/charging from sysfs
 │       ├── brightness.rs  backlight percent from sysfs + brightnessctl
 │       ├── volume.rs      wireplumber volume/mute via wpctl
-│       ├── wifi.rs        SSID/signal via iwctl
+│       ├── wifi.rs        SSID/signal via nl80211 (neli-wifi)
 │       └── workspaces/    per-compositor workspace strip (feature-gated backend)
 │           ├── hypr.rs    Hyprland IPC (hyprland feature)
 │           ├── niri.rs    niri IPC (niri feature)
