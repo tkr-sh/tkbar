@@ -6,6 +6,8 @@ mod wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 mod workspaces;
 
+#[cfg(feature = "wifi")]
+pub use wifi::wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 pub use workspaces::workspaces;
 use {
@@ -15,8 +17,6 @@ use {
     std::{fmt::Write as _, thread, time::Duration},
 };
 pub use {battery::battery, brightness::brightness, volume::volume};
-#[cfg(feature = "wifi")]
-pub use wifi::wifi;
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
