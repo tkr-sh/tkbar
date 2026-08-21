@@ -174,7 +174,7 @@ fn load_from(path: Option<&std::path::Path>) -> Config {
             // `expect`) at every call site — a lot of churn for a single,
             // startup-only error path. This exit is deliberate and confined to
             // startup config validation: it is never reached at runtime, never
-            // on untrusted widget input (SSID, `wpctl`, `iwctl`, ...), which
+            // on untrusted widget input (SSID, `wpctl`, ...), which
             // all stay on fallible `parse().ok()?` chains that fail closed.
             std::process::exit(1);
         },
