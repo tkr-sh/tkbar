@@ -11,6 +11,79 @@
     };
 
     outputs = { self, nixpkgs, flake-utils, rust-overlay, dagger, ... }:
+        let
+            nixosModule = { config, lib, pkgs, ... }:
+                let
+                    cfg = config.programs.tkbar;
+                    bl = cfg.backlight;
+
+                    backlightUdevRules = pkgs.writeTextDir
+                        "etc/udev/rules.d/99-tkbar-backlight.rules"
+                        ''
+                        ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="*", RUN+="${pkgs.coreutils}/bin/chgrp ${bl.group} /sys/class/backlight/%k/brightness"
+                        ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="*", RUN+="${pkgs.coreutils}/bin/chmod g+rw /sys/class/backlight/%k/brightness"
+                        '';
+                in
+                    {
+                        options.programs.tkbar = {
+                            enable = lib.mkEnableOption "tkbar";
+
+                            package = lib.mkOption {
+                                type = lib.types.package;
+                                default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
+                                description = "The tkbar package to install.";
+                            };
+
+                            backlight = {
+                                enable = lib.mkEnableOption ''
+                                Install a udev rule giving a dedicated group write access to
+                                /sys/class/backlight/*/brightness.
+
+                                This avoids setuid binaries.
+                                '';
+
+                                group = lib.mkOption {
+                                    type = lib.types.str;
+                                    default = "tkbar-backlight";
+                                    description = ''
+                                    Group that will get write access to backlight brightness files.
+
+                                    You can also set this to "video" if you prefer using the
+                                    conventional Linux video group.
+                                    '';
+                                };
+
+                                users = lib.mkOption {
+                                    type = lib.types.listOf lib.types.str;
+                                    default = [ ];
+                                    description = ''
+                                    Users to add to the backlight group.
+
+                                    Example:
+
+                                    programs.tkbar.backlight.users = [ "alice" ];
+                                    '';
+                                    };
+                                };
+                            };
+
+                            config = lib.mkIf cfg.enable (lib.mkMerge [
+                                {
+                                    environment.systemPackages = [ cfg.package ];
+                                }
+
+                                (lib.mkIf bl.enable {
+                                    users.groups.${bl.group} = { };
+
+                                    services.udev.packages = [ backlightUdevRules ];
+                                })
+
+                                (lib.mkIf (bl.enable && bl.users != [ ]) {
+                                    users.groups.${bl.group}.members = bl.users;
+                                })
+                            ]);
+                    };
+    in
         flake-utils.lib.eachDefaultSystem (system:
         let
             overlays = [ (import rust-overlay) ];
@@ -48,7 +121,6 @@
                     gsettings-desktop-schemas
 
                     # Runtime tools the bar shells out to
-                    brightnessctl
                     wireplumber
                 ];
                 nativeBuildInputs = with pkgs; [
@@ -126,7 +198,6 @@
                         wrapProgram $out/bin/tkbar \
                           --prefix PATH : ${
                               pkgs.lib.makeBinPath [
-                                  pkgs.brightnessctl
                                   pkgs.wireplumber
                               ]
                           }
@@ -139,6 +210,8 @@
                 type = "app";
                 program = "${self.packages.${system}.default}/bin/tkbar";
             };
-        }
-    );
+        }) // {
+            nixosModules.default = nixosModule;
+            nixosModules.tkbar = nixosModule;
+        };
 }

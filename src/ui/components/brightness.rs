@@ -10,7 +10,7 @@ use {
         prelude::*,
     },
     gtk4 as gtk,
-    std::{path::PathBuf, process::Command, thread, time::Duration},
+    std::{path::PathBuf, thread, time::Duration},
 };
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -18,7 +18,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum BrightnessState {
     NoDevice,
-    Present(u32),
+    Present(u8),
 }
 
 pub fn brightness() -> GtkBox {
@@ -49,8 +49,8 @@ pub fn brightness() -> GtkBox {
     let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
         Some(match poll_device.as_deref() {
             Some(device) => {
-                match read_percent(device) {
-                    Some(percent) => BrightnessState::Present(percent),
+                match Brightness::from_path(device) {
+                    Some(brightness) => BrightnessState::Present(brightness.percent()),
                     None => {
                         if !warned {
                             crate::log::warn(
@@ -96,15 +96,26 @@ pub fn brightness() -> GtkBox {
     let scroll_device = device.clone();
     scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            brightnessctl(
-                &format!("{}%+", CONFIG.behaviour.on_scroll_brightness_step),
+            set_brightness(
                 scroll_device.clone(),
+                SetValue::Relative(
+                    i8::try_from(CONFIG.behaviour.on_scroll_brightness_step).unwrap_or(0),
+                ),
                 scroll_tx.clone(),
             );
         } else {
-            brightnessctl(
-                &format!("{}%-", CONFIG.behaviour.on_scroll_brightness_step),
+            set_brightness(
                 scroll_device.clone(),
+                SetValue::Relative(
+                    i8::try_from(
+                        CONFIG
+                            .behaviour
+                            .on_scroll_brightness_step
+                            .min(u8::try_from(i8::MAX).unwrap_or(0)),
+                    )
+                    .unwrap_or(0)
+                    .saturating_neg(),
+                ),
                 scroll_tx.clone(),
             );
         }
@@ -116,14 +127,18 @@ pub fn brightness() -> GtkBox {
     let click_tx = tx.clone();
     let click_device = device.clone();
     click.connect_released(move |_, _, _, _| {
-        brightnessctl("1", click_device.clone(), click_tx.clone());
+        set_brightness(
+            click_device.clone(),
+            SetValue::Absolute(1),
+            click_tx.clone(),
+        );
     });
     container.add_controller(click);
 
     container
 }
 
-const fn icon_for(percent: u32) -> &'static str {
+const fn icon_for(percent: u8) -> &'static str {
     match percent {
         0..=1 => "",
         2..=33 => "󰃞",
@@ -152,38 +167,93 @@ fn find_device() -> Option<PathBuf> {
     devices.into_iter().next().map(|(_, p)| p)
 }
 
-fn read_percent(device: &std::path::Path) -> Option<u32> {
-    let read_u32 = |name: &str| -> Option<u32> {
-        std::fs::read_to_string(device.join(name))
-            .ok()?
-            .trim()
-            .parse()
-            .ok()
-    };
-    let current = read_u32("brightness")?;
-    let max = read_u32("max_brightness")?;
-    if max == 0 {
-        return None;
-    }
-    Some((current.saturating_mul(100) + max / 2) / max)
+#[derive(Debug, Copy, Clone)]
+struct Brightness {
+    actual_brightness: u64,
+    max_brightness: u64,
 }
 
-fn brightnessctl(step: &str, device: Option<PathBuf>, tx: async_channel::Sender<BrightnessState>) {
-    let step = step.to_string();
+impl Brightness {
+    fn from_path(device: &std::path::Path) -> Option<Self> {
+        let read_u64 = |name: &str| -> Option<u64> {
+            std::fs::read_to_string(device.join(name))
+                .ok()?
+                .trim()
+                .parse()
+                .ok()
+        };
+        let actual_brightness = read_u64("brightness")?;
+        let max_brightness = read_u64("max_brightness")?;
+        if max_brightness == 0 {
+            return None;
+        }
+
+        Some(Self {
+            actual_brightness,
+            max_brightness,
+        })
+    }
+
+    fn percent(&self) -> u8 {
+        let percent = self.actual_brightness.saturating_mul(100) /
+            if self.max_brightness == 0 {
+                1
+            } else {
+                self.max_brightness
+            };
+
+        u8::try_from(percent.min(100)).unwrap_or(100)
+    }
+}
+
+
+
+enum SetValue {
+    /// Set the value to in actual_brightness
+    Absolute(u64),
+    /// Increase / Decrease by, in percentage
+    Relative(i8),
+}
+
+fn set_brightness(
+    device: Option<PathBuf>,
+    set_value: SetValue,
+    tx: async_channel::Sender<BrightnessState>,
+) {
     if let Some(device) = device &&
-        let Some(name) = device.file_name()
+        let Some(mut brightness) = Brightness::from_path(&device)
     {
-        let name = name.to_string_lossy().into_owned();
         thread::spawn(move || {
-            if let Err(err) = Command::new("brightnessctl")
-                .args(["--device", &name, "set", &step])
-                .status()
+            let new_brightness = match set_value {
+                SetValue::Absolute(absolute) => absolute,
+                SetValue::Relative(relative) => {
+                    if relative > 0 {
+                        brightness.max_brightness.min(
+                            brightness.actual_brightness +
+                                (u64::try_from(relative)
+                                    .unwrap_or(0)
+                                    .saturating_mul(brightness.max_brightness)) /
+                                    100,
+                        )
+                    } else {
+                        brightness.actual_brightness.saturating_sub(
+                            (u64::try_from(relative.saturating_neg())
+                                .unwrap_or(0)
+                                .saturating_mul(brightness.max_brightness)) /
+                                100,
+                        )
+                    }
+                },
+            };
+
+            if let Err(err) = std::fs::write(device.join("brightness"), new_brightness.to_string())
             {
-                crate::log::warn("brightness", &format!("failed to run brightnessctl: {err}"));
+                crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
             }
-            if let Some(percent) = read_percent(&device) {
-                let _ = tx.send_blocking(BrightnessState::Present(percent));
-            }
+
+            brightness.actual_brightness = new_brightness;
+
+            let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
         });
     } else {
         crate::log::warn("brightness", "cannot adjust brightness: device unavailable");

@@ -119,6 +119,38 @@ The plain cargo equivalent is:
 cargo build --no-default-features --features purple,hyprland,wifi
 ```
 
+## NixOS module
+
+The flake also exposes a NixOS module (`nixosModules.default`, aliased as
+`nixosModules.tkbar`) under `programs.tkbar`:
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `programs.tkbar.enable` | bool | `false` | Installs the bar into `environment.systemPackages`. |
+| `programs.tkbar.package` | package | the flake's default package | The tkbar package to install; use the `.override { ... }` form above to select theme/backend/features. |
+| `programs.tkbar.backlight.enable` | bool | `false` | Installs a udev rule granting a dedicated group write access to `/sys/class/backlight/*/brightness`, so the bar writes sysfs directly — no setuid binary, no external CLI. |
+| `programs.tkbar.backlight.group` | string | `"tkbar-backlight"` | Group that gets write access; set it to `"video"` to reuse the conventional Linux video group. |
+| `programs.tkbar.backlight.users` | list of strings | `[ ]` | Users added to that group. |
+
+Example:
+
+```nix
+programs.tkbar = {
+  enable = true;
+  backlight = {
+    enable = true;
+    users = [ "alice" ];
+  };
+};
+```
+
+The udev rule fires on device `add`; after the first `nixos-rebuild switch` on an
+already-booted system, apply it without rebooting:
+
+```sh
+sudo udevadm trigger --subsystem-match=backlight --action=add
+```
+
 ## Adding a theme
 
 Ten themes are generated from a single SCSS source,
