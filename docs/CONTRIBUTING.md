@@ -115,7 +115,7 @@ just fix     # clippy --fix + fmt + taplo
 
 - **No `unsafe`.** Safe Rust only.
 - **No `unwrap`/`expect`/panic on externally-influenced data.** That means
-  Wi-Fi SSIDs, `wpctl`/`brightnessctl` output, and sysfs. The Wi-Fi SSID arrives
+  Wi-Fi SSIDs, `wpctl` output, and sysfs. The Wi-Fi SSID arrives
   as raw attacker-controlled bytes from nl80211 and is only ever decoded and
   displayed, never parsed; `wpctl` and sysfs inputs stay on fallible
   `parse().ok()?` chains that fail closed (keep the last state); a malformed

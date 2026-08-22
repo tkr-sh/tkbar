@@ -8,7 +8,10 @@ Wayland compositors. The whole bar is a single window that is a GTK
 
 The repository is a Cargo workspace with two crates: `tkbar` at the root (a
 bin + lib package) and the `tkbar-ci` pipeline in [`ci/`](../ci). The clippy
-lints live once in the root manifest as `[workspace.lints.clippy]`.
+lints live once in the root manifest as `[workspace.lints.clippy]`. The flake
+([`flake.nix`](../flake.nix)) provides the package, the devshell, and a NixOS
+module (`programs.tkbar`) that installs the bar and an optional backlight udev
+rule.
 
 The `tkbar` crate:
 
@@ -23,7 +26,7 @@ src/
 │   └── components/
 │       ├── mod.rs         Component enum, add_to_bar, spawn_poller, spacer, clock
 │       ├── battery.rs     battery percent/charging from sysfs
-│       ├── brightness.rs  backlight percent from sysfs + brightnessctl
+│       ├── brightness.rs  backlight percent read/written directly via sysfs
 │       ├── volume.rs      wireplumber volume/mute via wpctl
 │       ├── wifi.rs        SSID/signal via nl80211 (neli-wifi)
 │       └── workspaces/    per-compositor workspace strip (feature-gated backend)

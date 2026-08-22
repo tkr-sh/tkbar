@@ -91,11 +91,31 @@ With the default `config` feature, three direct Rust crates are added: `director
 | a Wayland compositor ([niri](https://github.com/YaLTeR/niri), [Hyprland](https://github.com/hyprwm/Hyprland), or [sway](https://github.com/swaywm/sway)) | Wayland protocol | fully trusted, see [SECURITY.md](docs/SECURITY.md) |
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | `wpctl` (WirePlumber) | spawned to get/set volume and mute | local daemon client, output parsed defensively |
-| `brightnessctl` | spawned to set backlight | writes to sysfs, its output is never parsed |
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
-| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly | kernel-provided |
+| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#nixos-module)) | kernel-provided |
 
 All spawned tools are looked up in `PATH`. The Nix package wraps the binary so that `PATH` resolves them from pinned, absolute `/nix/store` paths.
+
+## NixOS module
+
+The flake ships a NixOS module (`nixosModules.default`) that installs the bar and can grant backlight write access without any setuid binary or external tool:
+
+```nix
+{
+  imports = [ tkbar.nixosModules.default ];
+
+  programs.tkbar = {
+    enable = true;
+    backlight = {
+      enable = true;        # udev rule for /sys/class/backlight/*/brightness
+      users = [ "alice" ];  # members of the backlight group
+      group = "video";    # or reuse the conventional video group
+    };
+  };
+}
+```
+
+With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default) write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs directly. On an already-booted system, apply it after `nixos-rebuild switch` with `sudo udevadm trigger --subsystem-match=backlight --action=add`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all module options.
 
 ## Configuration
 
