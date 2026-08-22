@@ -78,9 +78,10 @@ These are structural, compile-time or design constraints, not runtime checks:
   toolchain; nightly is confined to the devshell for `rustfmt`/`clippy`, so
   shipped binaries are produced by the well-tested stable compiler, not a
   moving nightly.
-- **No privileges.** Runs as your user, no capabilities, no secrets. Brightness
-  writes go through kernel/udev permission checks (`video` group), not through
-  the bar.
+- **No privileges.** Runs as your user, no capabilities, no secrets, no setuid
+  helpers. Brightness is written directly to sysfs, gated by kernel/udev
+  permission checks; the flake's NixOS module installs a udev rule granting
+  write access to a dedicated group (`tkbar-backlight` by default, or `video`).
 
 ## Known attack surface
 
@@ -91,10 +92,11 @@ The README details this; the short version:
   the bar loads no images or remote content — gdk-pixbuf's image loader modules
   are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → empty cache), so no image
   parser code runs. Keep your system GTK updated.
-- **`PATH` hijacking** of the spawned `wpctl` and `brightnessctl` would give
-  code execution. Mitigated in the Nix package (pinned wrapper `PATH`);
-  elsewhere, keep your `PATH` sane. The Wi-Fi path doesn't spawn any process
-  (it talks to the kernel via netlink), so it has no `PATH` hijack surface.
+- **`PATH` hijacking** of the spawned `wpctl` would give code execution.
+  Mitigated in the Nix package (pinned wrapper `PATH`); elsewhere, keep your
+  `PATH` sane. The Wi-Fi and brightness paths don't spawn any process (Wi-Fi
+  talks to the kernel via netlink, brightness writes sysfs directly), so they
+  have no `PATH` hijack surface.
 - A **malicious Wi-Fi SSID** traveling through a memory-safe parser has a worst
   realistic outcome of a misleading tooltip — UI confusion, not corruption.
 - A **compromised compositor** can overlay, spoof, or intercept anything; this

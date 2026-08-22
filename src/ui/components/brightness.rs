@@ -246,7 +246,8 @@ fn set_brightness(
                 },
             };
 
-            if let Err(err) = std::fs::write(&device, new_brightness.to_string()) {
+            if let Err(err) = std::fs::write(&device.join("brightness"), new_brightness.to_string())
+            {
                 crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
             }
 
