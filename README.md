@@ -33,11 +33,9 @@
     </a>
 </p>
 
-<span style="text-align: center" align="center">
-
-A minimalist, hardened status bar.
-
-</span>
+<p align="center">
+A minimalist, hardened status bar for Wayland.
+</p>
 
 <div style="display: flex; flex-direction: row; justify-content: center; align-items: center;" align="center">
 
@@ -52,24 +50,23 @@ A minimalist, hardened status bar.
 
 </div>
 
+I was unsatisfied with the state of Wayland bars and shells (bloat, huge attack surface, not enough config options, protocols left unhandled), so I wrote a minimal thing that works for me.
 
-I was personally unsatisfied with the state of wayland bars and shells (bloat, huge attack surface, not enough config options, not handling some protocols, etc.) so I just wrote a minimal thing that worked for me.
+`tkbar` is small and opinionated on purpose: every optional piece is feature-gated so it can be compiled out, and what doesn't exist is hardcoded by design. A single TOML file tunes the layout and behaviour, a CSS file can restyle everything, and the rest is baked in. Want to go deeper? Fork it, or open a PR with proper feature gating.
 
-Configuration is optional and deliberately limited: a single TOML file can reorder/hide components and set the bar size, everything else is hardcoded on purpose. Fork it if you want to change something deeper or make a PR with proper feature gating.
+## ✨ Features
 
-## Supported compositors
+- 🖥️ **Workspace compositors** — [niri](https://github.com/YaLTeR/niri) (default), [Hyprland](https://github.com/hyprwm/Hyprland), and [sway](https://github.com/swaywm/sway), selected at build time via Cargo features.
+- 🧩 **Components** — clickable workspaces, battery, Wi-Fi (SSID & signal), brightness, volume, clock, spacer and a logo glyph.
+- 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
+- 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
+- ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature, build with `--no-default-features` and no parser is linked at all.
+- 🔒 **Hardened** — no `unsafe`, no network code, no dynamic loading, no panics on external data, and a minimal, auditable dependency tree (see [Security](#-security)).
+- 🚧 **Coming soon** — optional `clap` (CLI flags like `--help`, `--version`, `--config`) and `logging` (the `log` crate) feature gates, for people who want more batteries included.
 
-`tkbar` is a Wayland status bar. It currently supports three compositors, selected at build time via Cargo features:
+## 📦 Dependencies
 
-- [niri](https://github.com/YaLTeR/niri) (default)
-- [Hyprland](https://github.com/hyprwm/Hyprland)
-- [sway](https://github.com/swaywm/sway)
-
-Other Wayland compositors may be supported in the future through additional workspace backends.
-
-## Dependencies
-
-The bar aims for a minimal dependency tree: every crate and library is code that runs with your full user privileges, so only what is strictly needed is pulled in. There is no logging framework (just `eprintln!`), and config parsing is feature-gated so it can be dropped entirely.
+The bar aims for a minimal dependency tree: every crate and library is code that runs with your full user privileges, so only what is strictly needed is pulled in. There is currently no logging framework (just `eprintln!`), and config parsing is feature-gated so it can be dropped entirely.
 
 ### Build-time
 
@@ -92,11 +89,11 @@ With the default `config` feature, three direct Rust crates are added: `director
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | `wpctl` (WirePlumber) | spawned to get/set volume and mute | local daemon client, output parsed defensively |
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
-| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#nixos-module)) | kernel-provided |
+| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#-nixos-module)) | kernel-provided |
 
 All spawned tools are looked up in `PATH`. The Nix package wraps the binary so that `PATH` resolves them from pinned, absolute `/nix/store` paths.
 
-## NixOS module
+## ❄️ NixOS module
 
 The flake ships a NixOS module (`nixosModules.default`) that installs the bar and can grant backlight write access without any setuid binary or external tool:
 
@@ -117,14 +114,15 @@ The flake ships a NixOS module (`nixosModules.default`) that installs the bar an
 
 With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default) write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs directly. On an already-booted system, apply it after `nixos-rebuild switch` with `sudo udevadm trigger --subsystem-match=backlight --action=add`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all module options.
 
-## Configuration
+## ⚙️ Configuration
 
-Optional and deliberately limited; the bar falls back to a hardcoded default
-when the file is missing. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for
-the full TOML format, the optional CSS overloading, and how to select a theme or
-drop the `config` feature from Nix.
+Optional and strictly validated: unknown keys are rejected, and a missing file
+falls back to the hardcoded default. See
+[docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the full TOML format, the
+optional CSS overloading, and how to select a theme or drop the `config`
+feature from Nix.
 
-## Security
+## 🔒 Security
 
 A status bar runs unsandboxed with your full user privileges, so attack surface
 is taken seriously: minimal dependencies, no `unsafe`, no panics on external
