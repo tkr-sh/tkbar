@@ -1,0 +1,3 @@
+ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="*", RUN+="/usr/bin/chgrp video /sys/class/backlight/%k/brightness"
+ACTION=="add", SUBSYSTEM=="backlight", KERNEL=="*", RUN+="/usr/bin/chmod g+rw /sys/class/backlight/%k/brightness"
+
