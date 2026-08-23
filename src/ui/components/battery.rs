@@ -124,8 +124,17 @@ pub fn battery() -> GtkBox {
                     BatteryState::Present(battery) => {
                         container.set_visible(true);
                         let is_charging = IS_CHARGING.load(Ordering::Relaxed);
+
                         icon.set_text(icon_for(battery.percent(), is_charging));
                         value.set_text(&battery.percent().to_string());
+
+
+                        if !is_charging && battery.percent() <= CRITICAL_PERCENT {
+                            container.add_css_class("critical");
+                        } else {
+                            container.remove_css_class("critical");
+                        }
+
                         PERCENT.store(battery.percent(), Ordering::Relaxed);
                     },
                 }
