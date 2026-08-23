@@ -50,7 +50,7 @@ A minimalist, hardened status bar for Wayland.
 
 </div>
 
-I was unsatisfied with the state of Wayland bars and shells (bloat, huge attack surface, not enough config options, protocols left unhandled), so I wrote a minimal thing that works for me.
+I was unsatisfied with the state of Wayland bars and shells (bloat, huge attack surface, not enough config options, protocols left unhandled), so I wrote a minimal thing that worked for me. It has since grown into a bar meant to work for anyone: multiple compositor backends, themes, Nix packaging, and a documented security model, without giving up on minimalism.
 
 `tkbar` is small and opinionated on purpose: every optional piece is feature-gated so it can be compiled out, and what doesn't exist is hardcoded by design. A single TOML file tunes the layout and behaviour, a CSS file can restyle everything, and the rest is baked in. Want to go deeper? Fork it, or open a PR with proper feature gating.
 
