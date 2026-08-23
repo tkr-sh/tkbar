@@ -249,11 +249,11 @@ fn set_brightness(
             if let Err(err) = std::fs::write(device.join("brightness"), new_brightness.to_string())
             {
                 crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
+            } else {
+                brightness.actual_brightness = new_brightness;
+
+                let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
             }
-
-            brightness.actual_brightness = new_brightness;
-
-            let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
         });
     } else {
         crate::log::warn("brightness", "cannot adjust brightness: device unavailable");
