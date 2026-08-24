@@ -35,7 +35,8 @@ src/
 │           └── sway.rs    sway/i3 IPC via swayipc (sway feature)
 ```
 
-- **`main.rs`** — `Application::builder().application_id(APP_ID)`; on startup
+- **`main.rs`** — CLI parsing via `clap` (feature `cli`), then
+  `Application::builder().application_id(APP_ID)`; on startup
   calls `load_css()`, on activate calls `build_window(app)`.
 - **`lib.rs`** — declares the modules, defines `THEME_CSS` (selected by the
   active color feature), loads the optional user CSS, and re-exports
@@ -96,7 +97,7 @@ Both patterns guarantee the GTK main loop only ever does cheap widget updates.
 ## Config flow
 
 ```
-main  →  CONFIG (LazyLock<Config>, conf.rs)  →  widgets
+main (CLI --config)  →  CLI_CONFIG_PATH (Option<PathBuf>)  →  CONFIG (LazyLock<Config>, conf.rs)  →  widgets
 ```
 
 Widgets read the global `CONFIG` directly, e.g.

@@ -25,8 +25,9 @@ See the the README's [Security](../README.md#security) section and
 
 ## Feature gating
 
-There are three categories of features in [`Cargo.toml`](../Cargo.toml):
+There are four categories of features in [`Cargo.toml`](../Cargo.toml):
 
+- `cli` — the optional clap-based CLI (`--help`, `--version`, `--config`).
 - `config` — the optional TOML/CSS configuration. It pulls in `directories`,
   `serde`, and `toml` (all `optional = true` dependencies already present in
   the tree through `niri-ipc`).
@@ -38,8 +39,8 @@ There are three categories of features in [`Cargo.toml`](../Cargo.toml):
   per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
   model.
 
-The default is `black` + `config` + `niri`
-(`default = ["black", "config", "niri"]`).
+The default is `black` + `cli` + `config` + `niri` + `wifi`
+(`default = ["black", "cli", "config", "niri", "wifi"]`).
 
 **Exactly one color must be enabled.** This is enforced by a `const` assert in
 [`src/lib.rs`](../src/lib.rs):
@@ -59,13 +60,13 @@ into the binary — the other nine are not.
 ### Building with feature combinations
 
 ```sh
-# black + config (the default)
+# black + config + cli (the default)
 cargo build
 
-# purple theme + config
-cargo build --no-default-features --features purple,config
+# purple theme + config + cli
+cargo build --no-default-features --features purple,config,cli
 
-# black theme, no config (no TOML parser linked at all)
+# black theme, no config, no cli (no TOML parser linked at all)
 cargo build --no-default-features --features black
 ```
 

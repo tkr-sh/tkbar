@@ -60,7 +60,8 @@ A minimalist, hardened status bar for Wayland.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
 - ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature, build with `--no-default-features` and no parser is linked at all.
 - 🔒 **Hardened** — no `unsafe`, no network code, no dynamic loading, no panics on external data, and a minimal, auditable dependency tree (see [Security](#-security)).
-- 🚧 **Coming soon** — optional `clap` (CLI flags like `--help`, `--version`, `--config`) and `logging` (the `log` crate) feature gates, for people who want more batteries included.
+- 💻 **CLI** — optional `clap` feature gate provides `--help`, `--version`, and `--config <path>` flags for overriding the configuration file path at runtime.
+- 🚧 **Coming soon** — optional `logging` (the `log` crate) feature gate, for people who want more batteries included.
 
 ## 📦 Dependencies
 
@@ -119,6 +120,30 @@ falls back to the hardcoded default. See
 [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the full TOML format, the
 optional CSS overloading, and how to select a theme or drop the `config`
 feature from Nix.
+
+## 💻 Usage
+
+When built with the `cli` feature (enabled by default):
+
+```
+tkbar [OPTIONS]
+```
+
+| Flag | Description |
+| --- | --- |
+| `--help` | Print help information |
+| `--version` | Print version |
+| `--config <PATH>` | Path to configuration file (requires the `config` feature) |
+
+
+Example:
+
+```sh
+tkbar --config ~/.config/tkbar/alt.toml
+```
+
+The `--config` flag overrides the default `$XDG_CONFIG_HOME/tkbar/config.toml`
+path for that invocation only.
 
 ## 🔒 Security
 

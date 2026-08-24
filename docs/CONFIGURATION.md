@@ -11,6 +11,10 @@ With the `config` feature, the bar reads
 `~/.config/tkbar/config.toml`). Parsing is handled in
 [`src/conf.rs`](../src/conf.rs).
 
+The path can be overridden at runtime with the `--config <PATH>` CLI flag
+(requires the `cli` feature, enabled by default). When `--config` is provided,
+the bar reads from the specified path instead of the default XDG location.
+
 ### Fields
 
 | Field | Type | Default | Description |
