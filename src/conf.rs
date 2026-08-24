@@ -7,10 +7,7 @@
 //! is used. An invalid file is a hard error: silently falling back would hide
 //! typos from the user.
 
-use {
-    crate::ui::{BarPosition, Component},
-    std::{path::Path, sync::OnceLock},
-};
+use crate::ui::{BarPosition, Component};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(deny_unknown_fields))]
@@ -191,7 +188,11 @@ fn load() -> Config {
 
 
 #[cfg(feature = "cli")]
+use std::{path::Path, sync::OnceLock};
+
+#[cfg(feature = "cli")]
 pub static CLI_CONFIG_PATH: OnceLock<Box<Path>> = OnceLock::new();
+
 
 #[cfg(feature = "config")]
 fn config_path() -> Option<Box<std::path::Path>> {
@@ -214,7 +215,8 @@ fn config_path() -> Option<Box<std::path::Path>> {
             directories::BaseDirs::new()?
                 .config_dir()
                 .join("tkbar")
-                .join("config.toml"),
+                .join("config.toml")
+                .into_boxed_path(),
         )
     }
 }
