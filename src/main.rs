@@ -1,18 +1,41 @@
 use {
-    gtk::{Application, glib, prelude::*},
+    gtk::glib,
     gtk4 as gtk,
-    tkbar::{APP_ID, build_window, load_css},
+    tkbar::{build_window, load_css},
 };
 
-fn main() -> glib::ExitCode {
+#[cfg(feature = "cli")]
+#[derive(clap::Parser)]
+#[command(name = "tkbar", version, about = "A GTK4 status bar for Wayland")]
+struct Cli {
+    /// Path to configuration file
+    #[cfg(feature = "config")]
+    #[arg(short, long)]
+    config: Option<std::path::PathBuf>,
+}
+
+fn main() {
+    #[cfg(feature = "cli")]
+    {
+        let cli = <Cli as clap::Parser>::parse();
+
+        if let Some(config_path) = cli.config {
+            use tkbar::CLI_CONFIG_PATH;
+
+            let _ = CLI_CONFIG_PATH.set(config_path.into_boxed_path());
+        }
+    }
+
     disable_image_loaders();
 
-    let app = Application::builder().application_id(APP_ID).build();
+    let _ = gtk::init();
 
-    app.connect_startup(|_| load_css());
-    app.connect_activate(build_window);
+    load_css();
+    build_window();
 
-    app.run()
+    let main_loop = glib::MainLoop::new(None, false);
+
+    main_loop.run();
 }
 
 fn disable_image_loaders() {

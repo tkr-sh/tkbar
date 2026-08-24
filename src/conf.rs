@@ -7,7 +7,10 @@
 //! is used. An invalid file is a hard error: silently falling back would hide
 //! typos from the user.
 
-use crate::ui::{BarPosition, Component};
+use {
+    crate::ui::{BarPosition, Component},
+    std::{path::Path, sync::OnceLock},
+};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "config", serde(deny_unknown_fields))]
@@ -186,14 +189,34 @@ fn load() -> Config {
     Config::hardcoded()
 }
 
+
+#[cfg(feature = "cli")]
+pub static CLI_CONFIG_PATH: OnceLock<Box<Path>> = OnceLock::new();
+
 #[cfg(feature = "config")]
-fn config_path() -> Option<std::path::PathBuf> {
-    Some(
-        directories::BaseDirs::new()?
-            .config_dir()
-            .join("tkbar")
-            .join("config.toml"),
-    )
+fn config_path() -> Option<Box<std::path::Path>> {
+    #[cfg(feature = "cli")]
+    {
+        CLI_CONFIG_PATH.clone().into_inner().or_else(|| {
+            Some(
+                directories::BaseDirs::new()?
+                    .config_dir()
+                    .join("tkbar")
+                    .join("config.toml")
+                    .into_boxed_path(),
+            )
+        })
+    }
+
+    #[cfg(not(feature = "cli"))]
+    {
+        Some(
+            directories::BaseDirs::new()?
+                .config_dir()
+                .join("tkbar")
+                .join("config.toml"),
+        )
+    }
 }
 
 pub(crate) const fn default_bar_size_px() -> usize {

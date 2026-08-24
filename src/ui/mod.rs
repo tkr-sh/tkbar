@@ -1,7 +1,7 @@
 use {
     crate::conf::CONFIG,
-    gtk::{Application, ApplicationWindow, Box as GtkBox, Orientation, prelude::*},
-    gtk4 as gtk,
+    gtk::{Box as GtkBox, Orientation, prelude::*},
+    gtk4::{self as gtk, Window},
     gtk4_layer_shell::{Edge, Layer, LayerShell},
 };
 mod components;
@@ -45,11 +45,11 @@ impl BarPosition {
     }
 }
 
-pub fn build_window(app: &Application) {
+pub fn build_window() {
     let bar_size = i32::try_from(CONFIG.style.bar_size_px)
         .unwrap_or_else(|_| i32::try_from(crate::conf::default_bar_size_px()).unwrap_or_default());
 
-    let mut builder = ApplicationWindow::builder().application(app);
+    let mut builder = Window::builder();
     builder = match CONFIG.style.position {
         BarPosition::Left | BarPosition::Right => builder.default_width(bar_size),
         BarPosition::Top | BarPosition::Bottom => builder.default_height(bar_size),

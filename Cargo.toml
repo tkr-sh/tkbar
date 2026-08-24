@@ -12,9 +12,19 @@
     gtk4 = { version = "0.9", features = ["v4_12"] }
     gtk4-layer-shell = "0.4"
 
+    # CLI
+    clap = { version = "4", optional = true, features = ["derive"] }
+
+    # Config
+    directories = { version = "6", optional = true }
+    serde = { version = "1", features = ["derive"], optional = true }
+    toml = { version = "1", optional = true }
+
+    # --- Components --- #
+    # - Wifi
     neli-wifi = { version = "0.6", optional = true }
 
-    # Workspace backends
+    # - Workspace backends
     hyprland = { version = "0.4.0-beta.3", optional = true, default-features = false, features = [
         "data",
         "dispatch",
@@ -23,14 +33,13 @@
     niri-ipc = { version = "26.4.0", optional = true }
     swayipc = { version = "4", optional = true }
 
-    # Config
-    directories = { version = "6", optional = true }
-    serde = { version = "1", features = ["derive"], optional = true }
-    toml = { version = "1", optional = true }
 
 [features]
+    default = ["black", "cli", "config", "niri", "wifi"]
+
+    #
+    cli = ["dep:clap"]
     config = ["dep:directories", "dep:serde", "dep:toml"]
-    default = ["black", "config", "niri", "wifi"]
 
     # Workspace backends
     hyprland = ["dep:hyprland"]
