@@ -100,7 +100,14 @@
         {
             devShells.default = with pkgs; mkShell {
                 buildInputs = [
-                    rust-bin.nightly.latest.default
+                    (rust-bin.nightly.latest.default.override {
+                        extensions = [
+                            "rust-src"
+                            "rust-analyzer"
+                            "clippy"
+                            "rustfmt"
+                        ];
+                    })
                     just
                     nushell
                     taplo
@@ -120,18 +127,16 @@
                     glib
                     gsettings-desktop-schemas
 
-                    # Runtime tools the bar shells out to
-                    wireplumber
+                    pipewire
                 ];
                 nativeBuildInputs = with pkgs; [
                     pkg-config
                     wrapGAppsHook4
+                    rustPlatform.bindgenHook
                 ];
 
-                # GTK looks up gsettings schemas and icons via XDG_DATA_DIRS;
-                # without this the binary can abort at startup in a pure shell.
                 shellHook = ''
-                    export XDG_DATA_DIRS=${gsettings-desktop-schemas}/share/gsettings-schemas/${gsettings-desktop-schemas.name}:${gtk4}/share/gsettings-schemas/${gtk4.name}:$XDG_DATA_DIRS
+                    export GSETTINGS_SCHEMA_DIR=${gsettings-desktop-schemas}/share/gsettings-schemas/${gsettings-desktop-schemas.name}:${gtk4}/share/gsettings-schemas/${gtk4.name}
                 '';
             };
 
@@ -141,15 +146,16 @@
             #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
             #   workspace = "hyprland";         # one of: niri hyprland sway
             #   withConfig = false;             # set false to drop the optional TOML/CSS config
-            #   components = [ "wifi" ];        # feature-gated components to build in
+            #   components = [ "wifi" "volume" ];        # feature-gated components to build in
             # }
             packages.default = pkgs.lib.makeOverridable
-                ({ color ? "black", workspace ? "niri", withConfig ? true, components ? [ "wifi" ] }:
+                ({ color ? "black", workspace ? "niri", withConfig ? true, components ? [ "wifi" "volume" ] }:
                 let
-                    # Component names mapping 1:1 to Cargo features. For now
-                    # only "wifi" is feature-gated; "brightness" and "audio"
-                    # will follow once their modules are gated.
-                    allowedComponents = [ "wifi" ];
+                    # Component names mapping 1:1 to Cargo features. Both
+                    # "wifi" and "volume" are feature-gated; "brightness" will
+                    # follow once its module is gated.
+                    allowedComponents = [ "volume" "wifi" ];
+                    withVolume = builtins.elem "volume" components;
                     invalidComponents =
                         builtins.filter (c: !(builtins.elem c allowedComponents)) components;
                 in
@@ -158,7 +164,7 @@
                     "tkbar: unsupported component(s) in 'components': "
                     + builtins.concatStringsSep ", " invalidComponents
                     + ". Allowed: " + builtins.concatStringsSep ", " allowedComponents
-                    + " (brightness and audio will follow once feature-gated)"
+                    + " (brightness will follow once feature-gated)"
                 )
                 else rustPlatform.buildRustPackage {
                     pname = "tkbar";
@@ -185,23 +191,14 @@
                         export GDK_PIXBUF_MODULE_FILE=$out/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
                     '';
 
-                    nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ];
+                    nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ]         ++ pkgs.lib.optional withVolume rustPlatform.bindgenHook;
                     buildInputs = with pkgs; [
                         gtk4
                         gtk4-layer-shell
                         glib
                         gsettings-desktop-schemas
-                    ];
-
-                    # Make the tools the bar shells out to resolvable at runtime.
-                    postFixup = ''
-                        wrapProgram $out/bin/tkbar \
-                          --prefix PATH : ${
-                              pkgs.lib.makeBinPath [
-                                  pkgs.wireplumber
-                              ]
-                          }
-                    '';
+                    ]
+                      ++ pkgs.lib.optional withVolume pipewire;
                 })
                 {};
 

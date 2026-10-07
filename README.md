@@ -86,11 +86,11 @@ With the default `config` feature, three direct Rust crates are added: `director
 | gtk4-layer-shell | linked, positions the window | small C library |
 | a Wayland compositor ([niri](https://github.com/YaLTeR/niri), [Hyprland](https://github.com/hyprwm/Hyprland), or [sway](https://github.com/swaywm/sway)) | Wayland protocol | fully trusted, see [SECURITY.md](docs/SECURITY.md) |
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
-| `wpctl` (WirePlumber) | spawned to get/set volume and mute | local daemon client, output parsed defensively |
+| PipeWire | Unix socket client, gets/sets volume and mute natively | local daemon, node params parsed defensively |
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
 | sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#-nixos-module)) | kernel-provided |
 
-All spawned tools are looked up in `PATH`. The Nix package wraps the binary so that `PATH` resolves them from pinned, absolute `/nix/store` paths.
+The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
 
 ## ❄️ NixOS module
 

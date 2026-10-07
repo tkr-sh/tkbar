@@ -32,16 +32,17 @@ input for *any* client.
 1. **Wi-Fi SSIDs** — any nearby access point can broadcast an arbitrary SSID;
    it reaches the bar as raw, attacker-controlled bytes from the nl80211
    netlink socket. This is the only remotely-influenced input.
-2. **Daemon responses** — `wpctl` output; local, but produced by daemons that
-   talk to every local client.
+2. **Daemon responses** — PipeWire node parameters (volume/mute); local, but
+   produced by a daemon that talks to every local client.
 3. **The configuration file** — writable by anything with access to your home
    directory.
 
 The bar opens no *network* sockets, speaks no network protocol, and never opens
 files based on data it received. The only sockets it holds are the Unix IPC
 socket to the compositor (niri/Hyprland/sway) — the same trusted path the
-wayland connection itself uses — and a `NETLINK_GENERIC` socket to the kernel
-for Wi-Fi state, which cannot reach a remote peer.
+wayland connection itself uses — a Unix socket to the local PipeWire daemon for
+volume/mute, and a `NETLINK_GENERIC` socket to the kernel for Wi-Fi state, none
+of which can reach a remote peer.
 
 ## Enforced security properties
 
@@ -51,10 +52,10 @@ These are structural, compile-time or design constraints, not runtime checks:
 - **No panics on externally-influenced data.** The Wi-Fi SSID arrives as raw,
   attacker-controlled bytes from a nearby access point via nl80211; it is
   decoded lossily and stripped of control characters, then only ever displayed
-  as a tooltip. `wpctl` and sysfs inputs are parsed with fallible
-  `parse().ok()?` chains that fail closed — malformed input makes a widget keep
-  its previous state, never crash the bar. `panic = "abort"` is set in the
-  release profile.
+   as a tooltip. PipeWire node parameters and sysfs inputs are parsed with
+   fallible `parse().ok()?` chains that fail closed — malformed input makes a
+   widget keep its previous state, never crash the bar. `panic = "abort"` is set
+   in the release profile.
 - **No network code.** No HTTP, no DNS, no listening sockets.
 - **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no
   webview. GTK's image-loading machinery is neutered: at startup the bar points
@@ -92,11 +93,9 @@ The README details this; the short version:
   the bar loads no images or remote content — gdk-pixbuf's image loader modules
   are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → empty cache), so no image
   parser code runs. Keep your system GTK updated.
-- **`PATH` hijacking** of the spawned `wpctl` would give code execution.
-  Mitigated in the Nix package (pinned wrapper `PATH`); elsewhere, keep your
-  `PATH` sane. The Wi-Fi and brightness paths don't spawn any process (Wi-Fi
-  talks to the kernel via netlink, brightness writes sysfs directly), so they
-  have no `PATH` hijack surface.
+- The bar **spawns no external processes**, so there is no `PATH` hijack
+  surface. Volume uses an in-process PipeWire client, Wi-Fi talks to the kernel
+  via netlink, and brightness writes sysfs directly.
 - A **malicious Wi-Fi SSID** traveling through a memory-safe parser has a worst
   realistic outcome of a misleading tooltip — UI confusion, not corruption.
 - A **compromised compositor** can overlay, spoof, or intercept anything; this

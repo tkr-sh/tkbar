@@ -247,6 +247,7 @@ fn default_components() -> Vec<Component> {
         #[cfg(feature = "wifi")]
         Component::Wifi,
         Component::Brightness,
+        #[cfg(feature = "volume")]
         Component::Volume,
         Component::Clock,
     ]

@@ -27,7 +27,7 @@ src/
 │       ├── mod.rs         Component enum, add_to_bar, spawn_poller, spacer, clock
 │       ├── battery.rs     battery percent/charging from sysfs
 │       ├── brightness.rs  backlight percent read/written directly via sysfs
-│       ├── volume.rs      wireplumber volume/mute via wpctl
+│       ├── volume.rs      PipeWire client for volume/mute
 │       ├── wifi.rs        SSID/signal via nl80211 (neli-wifi)
 │       └── workspaces/    per-compositor workspace strip (feature-gated backend)
 │           ├── hypr.rs    Hyprland IPC (hyprland feature)
@@ -52,10 +52,10 @@ src/
 - **`ui/components/*`** — individual widgets; each is a pair of a `GtkBox`
   (icon + value labels) and the code that feeds it.
 
-## The two background patterns
+## The three background patterns
 
-Heavy work — reading sysfs, spawning processes, or holding a long-lived IPC
-socket — is kept off the GTK main loop. Both patterns ship state over an
+Heavy work — reading sysfs, talking to a daemon, or holding a long-lived IPC
+socket — is kept off the GTK main loop. All patterns ship state over an
 `async_channel` and update widgets on the main loop via `glib::spawn_future_local`.
 
 ### 1. Poller pattern (`spawn_poller`)
@@ -69,9 +69,9 @@ spawns a worker thread that:
 
 The GTK side uses `glib::spawn_future_local` with `glib::clone!` and
 `#[weak]`/`#[upgrade_or]` (or `#[upgrade_or_default]`) to update widgets while
-the container is alive. Used by `battery`, `brightness`, `volume`, and `wifi`.
+the container is alive. Used by `battery`, `brightness`, and `wifi`.
 
-Poll intervals: `battery`/`brightness` 500 ms, `volume` 500 ms, `wifi` 5 s.
+Poll intervals: `battery`/`brightness` 500 ms, `wifi` 5 s.
 
 ### 2. Event-driven pattern (`workspaces/`)
 
@@ -92,7 +92,16 @@ Exactly one backend is compiled in at build time (`niri`, `hyprland`, or
   snapshot opens a fresh one; since `get_workspaces` exposes no window count, a
   `get_tree()` walk counts leaf containers per workspace to derive `is_active`.
 
-Both patterns guarantee the GTK main loop only ever does cheap widget updates.
+### 3. Native client pattern (`volume`)
+
+The `volume` component runs a dedicated thread with its own PipeWire main loop.
+It binds the default sink node and the `default` metadata object, receives
+volume/mute parameter updates as they change, and pushes the resulting state over
+an `async_channel`. Scroll and click handlers send `Cmd` values back over a
+`pipewire::channel`; the loop applies them by writing SPA pods to the sink node
+and reports the new state. No external process is spawned.
+
+All patterns guarantee the GTK main loop only ever does cheap widget updates.
 
 ## Config flow
 
@@ -135,7 +144,7 @@ at `STYLE_PROVIDER_PRIORITY_USER`.
 4. **Register it in the default** — add it to `default_components()` in
    `src/conf.rs` if it should be on by default.
 5. **Write parser tests** in an inline `#[cfg(test)]` module, including
-   adversarial inputs (see `wifi.rs`/`volume.rs`).
+   adversarial inputs (see `wifi.rs`).
 6. **Feature-gate if needed** — new behavior should be opt-in behind a
    `[features]` entry in `Cargo.toml` rather than a new default dependency.
 7. Run `just check` and confirm CI (`just dagger`) passes.

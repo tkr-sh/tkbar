@@ -4,22 +4,54 @@ use {
         Box as GtkBox,
         EventControllerScroll,
         EventControllerScrollFlags,
-        GestureClick,
         Label,
         glib,
         prelude::*,
     },
-    gtk4 as gtk,
-    std::{process::Command, thread, time::Duration},
+    gtk4::{self as gtk, GestureClick},
+    pipewire::{
+        channel::Receiver,
+        context::ContextRc,
+        keys::{MEDIA_CLASS, NODE_NAME},
+        main_loop::MainLoopRc,
+        metadata::{Metadata, MetadataListener},
+        node::{Node, NodeListener},
+        registry::RegistryRc,
+        spa::{
+            self,
+            param::ParamType,
+            pod::{
+                Pod,
+                Property,
+                PropertyFlags,
+                Value,
+                ValueArray,
+                deserialize::PodDeserializer,
+                serialize::PodSerializer,
+            },
+            utils::SpaTypes,
+        },
+        types::ObjectType,
+    },
+    std::{
+        cell::RefCell,
+        collections::HashMap,
+        io::Cursor,
+        rc::{Rc, Weak},
+        sync::{Arc, Mutex},
+    },
 };
 
-const SINK: &str = "@DEFAULT_AUDIO_SINK@";
-const POLL_INTERVAL: Duration = Duration::from_millis(500);
-
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
 struct VolState {
     percent: u32,
     muted: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct VolUpdate {
+    percent: Option<u32>,
+    muted: Option<bool>,
 }
 
 pub fn volume() -> GtkBox {
@@ -37,19 +69,12 @@ pub fn volume() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let mut warned = false;
-    let (tx, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        match query() {
-            Some(state) => Some(state),
-            None => {
-                if !warned {
-                    crate::log::warn("volume", "waiting for `wpctl get-volume` to succeed");
-                    warned = true;
-                }
-                None
-            },
-        }
-    });
+    let vol_state = Arc::new(Mutex::new(Option::<VolState>::None));
+    let (tx, rx) = pipewire::channel::channel::<Cmd>();
+    let (vol_update_tx, vol_update_rx) = async_channel::unbounded::<VolState>();
+
+
+    launch_pipewire_thread(vol_state, rx, vol_update_tx);
 
     glib::spawn_future_local(glib::clone!(
         #[weak]
@@ -60,7 +85,7 @@ pub fn volume() -> GtkBox {
         value,
         #[upgrade_or_default]
         async move {
-            while let Ok(s) = rx.recv().await {
+            while let Ok(s) = vol_update_rx.recv().await {
                 icon.set_text(icon_for(&s));
                 if s.muted {
                     value.set_text("mute");
@@ -73,42 +98,375 @@ pub fn volume() -> GtkBox {
         }
     ));
 
-    let click = GestureClick::new();
-    let click_tx = tx.clone();
-    click.connect_released(move |_, _, _, _| {
-        wpctl(["set-mute", SINK, "toggle"].as_slice(), click_tx.clone());
-    });
-    container.add_controller(click);
 
-    let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
-    let scroll_tx = tx.clone();
-    scroll.connect_scroll(move |_, _dx, dy| {
+    let on_scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
+    let on_scroll_tx = tx.clone();
+    on_scroll.connect_scroll(move |_, _dx, dy| {
         if dy < 0.0 {
-            wpctl(
-                [
-                    "set-volume",
-                    SINK,
-                    &format!("{}%+", CONFIG.behaviour.on_scroll_volume_step),
-                ]
-                .as_slice(),
-                scroll_tx.clone(),
-            );
+            let _ = on_scroll_tx.send(Cmd::IncVolume);
         } else {
-            wpctl(
-                [
-                    "set-volume",
-                    SINK,
-                    &format!("{}%-", CONFIG.behaviour.on_scroll_volume_step),
-                ]
-                .as_slice(),
-                scroll_tx.clone(),
-            );
+            let _ = on_scroll_tx.send(Cmd::DecVolume);
         }
         glib::Propagation::Stop
     });
-    container.add_controller(scroll);
+
+    let on_click = GestureClick::new();
+    let on_click_tx = tx.clone();
+    on_click.connect_released(move |_, _, _, _| {
+        let _ = on_click_tx.send(Cmd::ToggleMute);
+    });
+
+    container.add_controller(on_scroll);
+    container.add_controller(on_click);
 
     container
+}
+
+fn launch_pipewire_thread(
+    vol_state: Arc<Mutex<Option<VolState>>>,
+    rx: Receiver<Cmd>,
+    vol_update_tx: async_channel::Sender<VolState>,
+) {
+    std::thread::spawn(move || pipewire_loop(vol_state, rx, &vol_update_tx));
+}
+
+fn pipewire_loop(
+    vol_state: Arc<Mutex<Option<VolState>>>,
+    rx: Receiver<Cmd>,
+    vol_update_tx: &async_channel::Sender<VolState>,
+) {
+    pipewire::init();
+
+    let Ok(main_loop) = MainLoopRc::new(None) else {
+        crate::log::warn("volume", "failed to create the PipeWire main loop");
+        return;
+    };
+
+    let Ok(context) = ContextRc::new(&main_loop, None) else {
+        crate::log::warn("volume", "failed to create the PipeWire context");
+        return;
+    };
+
+    let Ok(core) = context.connect_rc(None) else {
+        crate::log::warn("volume", "failed to connect to PipeWire");
+        return;
+    };
+
+    let Ok(registry) = core.get_registry_rc() else {
+        crate::log::warn("volume", "failed to acquire the PipeWire registry");
+        return;
+    };
+
+    let pw_state = Rc::new(RefCell::new(PwState::default()));
+
+
+    let _attached = rx.attach(main_loop.loop_(), {
+        let pw_state = Rc::clone(&pw_state);
+        let vol_state = Arc::clone(&vol_state);
+        let vol_update_tx = vol_update_tx.clone();
+        move |cmd| {
+            let pw = pw_state.borrow();
+
+            let Some(name) = pw.default_sink_name.as_ref() else {
+                return;
+            };
+
+            let Some(entry) = pw.sinks.get(name) else {
+                return;
+            };
+
+
+            let new_vol_state = {
+                let mut vol = vol_state.lock().expect("mutex poisoned");
+                let step = u32::from(CONFIG.behaviour.on_scroll_volume_step);
+                let Some(state) = vol.as_mut() else {
+                    return;
+                };
+
+                match cmd {
+                    Cmd::IncVolume => state.percent = state.percent.saturating_add(step).min(255),
+                    Cmd::DecVolume => state.percent = state.percent.saturating_sub(step),
+                    Cmd::ToggleMute => state.muted = !state.muted,
+                }
+
+                *state
+            };
+
+            let _ = vol_update_tx.try_send(new_vol_state);
+
+            match cmd {
+                Cmd::IncVolume | Cmd::DecVolume => {
+                    let bytes = volume_pod(new_vol_state.percent, 2);
+                    let pod = Pod::from_bytes(&bytes).expect("volume_pod output is a valid pod");
+                    entry.node.set_param(ParamType::Props, 0, pod);
+                },
+                Cmd::ToggleMute => {
+                    let bytes = mute_pod(new_vol_state.muted);
+                    let pod = Pod::from_bytes(&bytes).expect("mute_pod output is a valid pod");
+                    entry.node.set_param(ParamType::Props, 0, pod);
+                },
+            }
+        }
+    });
+
+    let _reg_listener = registry
+        .add_listener_local()
+        .global({
+            let pw_state_weak = Rc::downgrade(&pw_state);
+            let registry_weak = RegistryRc::downgrade(&registry);
+            let vol_update_tx = vol_update_tx.clone();
+            move |obj| {
+                match obj.type_ {
+                    ObjectType::Node => {
+                        let Some(props) = obj.props else { return };
+
+                        if props.get(*MEDIA_CLASS) != Some("Audio/Sink") {
+                            return;
+                        }
+
+                        let Some(name) = props.get(*NODE_NAME).map(str::to_owned) else {
+                            return;
+                        };
+
+                        let Some(registry) = registry_weak.upgrade() else {
+                            return;
+                        };
+
+                        let node: Node = match registry.bind(obj) {
+                            Ok(n) => n,
+                            Err(_) => return,
+                        };
+
+                        let listener = node
+                            .add_listener_local()
+                            .param({
+                                let vol_state_weak = Arc::downgrade(&vol_state);
+                                let vol_update_tx = vol_update_tx.clone();
+                                move |_seq, id, _index, _next, param| {
+                                    if id != ParamType::Props {
+                                        return;
+                                    }
+                                    let Some(param) = param else { return };
+                                    let Some(update) = VolUpdate::parse(param) else {
+                                        return;
+                                    };
+
+                                    if let Some(state) = vol_state_weak.upgrade() {
+                                        let snapshot = {
+                                            let mut guard = state.lock().expect("mutex poisoned");
+                                            let current =
+                                                guard.get_or_insert_with(VolState::default);
+
+                                            current.apply_update(update);
+
+                                            *current
+                                        };
+
+
+                                        let _ = vol_update_tx.try_send(snapshot);
+                                    }
+                                }
+                            })
+                            .register();
+
+                        node.subscribe_params(&[ParamType::Props]);
+                        node.enum_params(0, Some(ParamType::Props), 0, u32::MAX);
+
+                        if let Some(state) = pw_state_weak.upgrade() {
+                            state.borrow_mut().sinks.insert(
+                                name,
+                                SinkEntry {
+                                    id: obj.id,
+                                    node,
+                                    _listener: listener,
+                                },
+                            );
+                        }
+                    },
+                    ObjectType::Metadata => {
+                        let Some(props) = obj.props else { return };
+
+                        if props.get("metadata.name") != Some("default") {
+                            return;
+                        }
+
+                        let Some(registry) = registry_weak.upgrade() else {
+                            return;
+                        };
+
+                        let metadata: Metadata = match registry.bind(obj) {
+                            Ok(m) => m,
+                            Err(_) => return,
+                        };
+
+                        let listener = metadata
+                            .add_listener_local()
+                            .property({
+                                let pw_state_weak = Weak::clone(&pw_state_weak);
+                                move |_subject, key, _type, value| {
+                                    if key == Some("default.audio.sink") &&
+                                        let Some(state) = pw_state_weak.upgrade()
+                                    {
+                                        let name = value.and_then(parse_sink_name);
+                                        state.borrow_mut().default_sink_name =
+                                            name.map(ToOwned::to_owned);
+                                    }
+                                    0
+                                }
+                            })
+                            .register();
+                        if let Some(state) = pw_state_weak.upgrade() {
+                            state.borrow_mut()._metadata = Some((metadata, listener));
+                        }
+                    },
+                    _ => {},
+                }
+            }
+        })
+        .global_remove({
+            let pw_state_weak = Rc::downgrade(&pw_state);
+            move |id| {
+                if let Some(state) = pw_state_weak.upgrade() {
+                    state.borrow_mut().sinks.retain(|_, e| e.id != id);
+                }
+            }
+        })
+        .register();
+
+    main_loop.run();
+}
+
+
+fn volume_pod(percent: u32, channels: usize) -> Vec<u8> {
+    let cubic = percent_to_cubic(percent);
+
+    let obj = spa::pod::Value::Object(spa::pod::Object {
+        type_: SpaTypes::ObjectParamProps.as_raw(),
+        id: ParamType::Props.as_raw(),
+        properties: vec![Property {
+            key: spa::sys::SPA_PROP_channelVolumes,
+            flags: PropertyFlags::empty(),
+            value: spa::pod::Value::ValueArray(ValueArray::Float(vec![cubic; channels.max(1)])),
+        }],
+    });
+
+    let (cursor, _len) =
+        PodSerializer::serialize(Cursor::new(Vec::new()), &obj).expect("volume props serialize");
+
+    cursor.into_inner()
+}
+
+fn mute_pod(is_muted: bool) -> Vec<u8> {
+    let obj = spa::pod::Value::Object(spa::pod::Object {
+        type_: SpaTypes::ObjectParamProps.as_raw(),
+        id: ParamType::Props.as_raw(),
+        properties: vec![Property {
+            key: spa::sys::SPA_PROP_mute,
+            flags: PropertyFlags::empty(),
+            value: spa::pod::Value::Bool(is_muted),
+        }],
+    });
+
+    let (cursor, _len) =
+        PodSerializer::serialize(Cursor::new(Vec::new()), &obj).expect("mute props serialize");
+
+    cursor.into_inner()
+}
+
+fn cubic_to_percent(cubic: f32) -> f32 {
+    cubic.cbrt() * 100.0
+}
+
+#[allow(clippy::as_conversions, reason = "u32 to f32 and clamped")]
+fn percent_to_cubic(percent: u32) -> f32 {
+    (percent.clamp(0, 255) as f32 / 100.0).powi(3)
+}
+
+#[derive(Default)]
+struct PwState {
+    default_sink_name: Option<String>,
+    sinks: HashMap<String, SinkEntry>,
+    // keeps alive
+    _metadata: Option<(Metadata, MetadataListener)>,
+}
+
+struct SinkEntry {
+    id: u32,
+    node: Node,
+    // keeps alive
+    _listener: NodeListener,
+}
+
+
+
+enum Cmd {
+    IncVolume,
+    DecVolume,
+    ToggleMute,
+}
+
+
+fn parse_sink_name(value: &str) -> Option<&str> {
+    let mut iter = value.split('"');
+
+    iter.find(|t| *t == "name")?;
+
+    if iter.next().is_none_or(|s| !s.contains(':')) {
+        return None;
+    }
+
+    iter.next()
+}
+
+impl VolState {
+    const fn apply_update(&mut self, update: VolUpdate) {
+        if let Some(percent) = update.percent {
+            self.percent = percent;
+        }
+
+        if let Some(muted) = update.muted {
+            self.muted = muted;
+        }
+    }
+}
+
+impl VolUpdate {
+    fn parse(pod: &Pod) -> Option<VolUpdate> {
+        let (_rest, value) = PodDeserializer::deserialize_from::<Value>(pod.as_bytes()).ok()?;
+        let Value::Object(obj) = value else {
+            return None;
+        };
+        let mut channels: Option<f32> = None;
+        let mut overall: Option<f32> = None;
+        let mut muted: Option<bool> = None;
+
+        for prop in &obj.properties {
+            if prop.key == spa::sys::SPA_PROP_channelVolumes {
+                if let Value::ValueArray(ValueArray::Float(v)) = &prop.value {
+                    channels = v
+                        .iter()
+                        .copied()
+                        .fold(None, |acc, x| Some(acc.map_or(x, |a| a.max(x))));
+                }
+            } else if prop.key == spa::sys::SPA_PROP_volume &&
+                let Value::Float(f) = &prop.value
+            {
+                overall = Some(*f);
+            } else if prop.key == spa::sys::SPA_PROP_mute &&
+                let Value::Bool(m) = &prop.value
+            {
+                muted = Some(*m);
+            }
+        }
+
+        #[allow(clippy::as_conversions, reason = "f32 to u32, and clamped")]
+        let percent = channels
+            .or(overall)
+            .map(cubic_to_percent)
+            .map(|perc| perc.clamp(0., 255.) as u32);
+
+        (percent.is_some() || muted.is_some()).then_some(VolUpdate { percent, muted })
+    }
 }
 
 const fn icon_for(state: &VolState) -> &'static str {
@@ -121,78 +479,5 @@ const fn icon_for(state: &VolState) -> &'static str {
             51..=100 => "󰕾",
             _ => "󱄡",
         }
-    }
-}
-
-fn query() -> Option<VolState> {
-    let out = Command::new("wpctl")
-        .args(["get-volume", SINK])
-        .output()
-        .ok()?;
-
-    parse_get_volume(&String::from_utf8_lossy(&out.stdout))
-}
-
-/// Parses `wpctl get-volume` output: `"Volume: X.XX"` or `"Volume: X.XX [MUTED]"`.
-fn parse_get_volume(text: &str) -> Option<VolState> {
-    let muted = text.contains("[MUTED]");
-    let fraction: f64 = text.split_whitespace().nth(1)?.parse().ok()?;
-    #[allow(
-        clippy::as_conversions,
-        reason = "f64->u32 `as` saturates, which is exactly what we want for a volume fraction"
-    )]
-    let percent: u32 = (fraction * 100.0).round() as u32;
-
-    Some(VolState { percent, muted })
-}
-
-fn wpctl(args: &[&str], tx: async_channel::Sender<VolState>) {
-    let args: Vec<String> = args.iter().map(|s| (*s).to_string()).collect();
-    thread::spawn(move || {
-        if let Err(err) = Command::new("wpctl").args(&args).status() {
-            crate::log::warn("volume", &format!("failed to run wpctl: {err}"));
-        }
-        if let Some(state) = query() {
-            let _ = tx.send_blocking(state);
-        }
-    });
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_plain_volume() {
-        assert_eq!(
-            parse_get_volume("Volume: 0.84"),
-            Some(VolState {
-                percent: 84,
-                muted: false
-            })
-        );
-    }
-
-    #[test]
-    fn parses_muted() {
-        assert_eq!(
-            parse_get_volume("Volume: 0.84 [MUTED]"),
-            Some(VolState {
-                percent: 84,
-                muted: true
-            })
-        );
-    }
-
-    #[test]
-    fn parses_boosted_volume() {
-        assert_eq!(parse_get_volume("Volume: 1.50").unwrap().percent, 150);
-    }
-
-    #[test]
-    fn rejects_garbage() {
-        assert_eq!(parse_get_volume(""), None);
-        assert_eq!(parse_get_volume("Volume: abc"), None);
-        assert_eq!(parse_get_volume("whatever"), None);
     }
 }

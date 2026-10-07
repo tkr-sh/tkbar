@@ -84,7 +84,7 @@ Use `--no-default-features` whenever you pick a color, otherwise the default
 ## Testing
 
 - Unit tests live inline as `#[cfg(test)]` modules next to the code. See
-  [`src/ui/components/volume.rs`](../src/ui/components/volume.rs) for the
+  [`src/ui/components/wifi.rs`](../src/ui/components/wifi.rs) for the
   adversarial-parser test style.
 - New parsing or parsing-adjacent code **must** be tested, including
   adversarial inputs: ANSI injection, overflow, and garbage that must never
@@ -116,9 +116,9 @@ just fix     # clippy --fix + fmt + taplo
 
 - **No `unsafe`.** Safe Rust only.
 - **No `unwrap`/`expect`/panic on externally-influenced data.** That means
-  Wi-Fi SSIDs, `wpctl` output, and sysfs. The Wi-Fi SSID arrives
+  Wi-Fi SSIDs, PipeWire node parameters, and sysfs. The Wi-Fi SSID arrives
   as raw attacker-controlled bytes from nl80211 and is only ever decoded and
-  displayed, never parsed; `wpctl` and sysfs inputs stay on fallible
+  displayed, never parsed; PipeWire and sysfs inputs stay on fallible
   `parse().ok()?` chains that fail closed (keep the last state); a malformed
   input must never crash the bar.
 - **No new runtime dependency without justification.** Minimal-dependency ethos.

@@ -1,11 +1,14 @@
 mod battery;
 mod brightness;
+#[cfg(feature = "volume")]
 mod volume;
 #[cfg(feature = "wifi")]
 mod wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 mod workspaces;
 
+#[cfg(feature = "volume")]
+pub use volume::volume;
 #[cfg(feature = "wifi")]
 pub use wifi::wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
@@ -16,7 +19,7 @@ use {
     gtk4 as gtk,
     std::{fmt::Write as _, thread, time::Duration},
 };
-pub use {battery::battery, brightness::brightness, volume::volume};
+pub use {battery::battery, brightness::brightness};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
@@ -30,6 +33,7 @@ pub enum Component {
     #[cfg(feature = "wifi")]
     Wifi,
     Brightness,
+    #[cfg(feature = "volume")]
     Volume,
     Clock,
 }
@@ -50,6 +54,7 @@ impl Component {
             #[cfg(feature = "wifi")]
             Component::Wifi => bar.append(&wifi()),
             Component::Brightness => bar.append(&brightness()),
+            #[cfg(feature = "volume")]
             Component::Volume => bar.append(&volume()),
             Component::Clock => bar.append(&clock()),
         }
