@@ -47,12 +47,14 @@ use {
 struct VolState {
     percent: u32,
     muted: bool,
+    nb_channels: usize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 struct VolUpdate {
     percent: Option<u32>,
     muted: Option<bool>,
+    nb_channels: Option<usize>,
 }
 
 pub fn volume() -> GtkBox {
@@ -207,7 +209,7 @@ fn pipewire_loop(
             } else {
                 match cmd {
                     Cmd::IncVolume | Cmd::DecVolume => {
-                        let bytes = volume_pod(new_vol_state.percent, 2);
+                        let bytes = volume_pod(new_vol_state.percent, new_vol_state.nb_channels);
                         let pod =
                             Pod::from_bytes(&bytes).expect("volume_pod output is a valid pod");
                         entry.node.set_param(ParamType::Props, 0, pod);
@@ -289,6 +291,7 @@ fn pipewire_loop(
                                     if id != ParamType::Props {
                                         return;
                                     }
+
                                     let Some(param) = param else { return };
                                     let Some(update) = VolUpdate::parse(param) else {
                                         return;
@@ -384,7 +387,7 @@ fn pipewire_loop(
                                             sink.route = Some(RouteRef {
                                                 index: event.index,
                                                 device: event.device,
-                                                channels: event.channels,
+                                                nb_channels: event.channels,
                                             });
                                             if Some(name) == default.as_ref() {
                                                 update = Some(event.update);
@@ -546,7 +549,7 @@ struct SinkEntry {
 struct RouteRef {
     index: i32,
     device: i32,
-    channels: usize,
+    nb_channels: usize,
 }
 
 struct DeviceEntry {
@@ -585,6 +588,10 @@ impl VolState {
         if let Some(muted) = update.muted {
             self.muted = muted;
         }
+
+        if let Some(nb_channels) = update.nb_channels {
+            self.nb_channels = nb_channels;
+        }
     }
 }
 
@@ -599,6 +606,7 @@ impl VolUpdate {
     }
 
     fn from_properties(properties: &[Property]) -> Option<VolUpdate> {
+        let mut nb_channels: Option<usize> = None;
         let mut channels: Option<f32> = None;
         let mut overall: Option<f32> = None;
         let mut muted: Option<bool> = None;
@@ -606,6 +614,7 @@ impl VolUpdate {
         for prop in properties {
             if prop.key == spa::sys::SPA_PROP_channelVolumes {
                 if let Value::ValueArray(ValueArray::Float(v)) = &prop.value {
+                    nb_channels = Some(v.len());
                     channels = v
                         .iter()
                         .copied()
@@ -626,9 +635,13 @@ impl VolUpdate {
         let percent = channels
             .or(overall)
             .map(cubic_to_percent)
-            .map(|perc| perc.clamp(0., 255.) as u32);
+            .map(|perc| perc.clamp(0., 255.).round() as u32);
 
-        (percent.is_some() || muted.is_some()).then_some(VolUpdate { percent, muted })
+        (percent.is_some() || muted.is_some() || nb_channels.is_some()).then_some(VolUpdate {
+            percent,
+            muted,
+            nb_channels,
+        })
     }
 }
 
@@ -732,7 +745,9 @@ fn route_pod(route: &RouteRef, state: VolState) -> Vec<u8> {
                             flags: PropertyFlags::empty(),
                             value: Value::ValueArray(ValueArray::Float(vec![
                                 cubic;
-                                route.channels.max(1)
+                                route
+                                    .nb_channels
+                                    .max(1)
                             ])),
                         },
                         Property {
