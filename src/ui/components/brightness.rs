@@ -95,30 +95,21 @@ pub fn brightness() -> GtkBox {
     let scroll_tx = tx.clone();
     let scroll_device = device.clone();
     scroll.connect_scroll(move |_, _dx, dy| {
-        if dy < 0.0 {
-            set_brightness(
-                scroll_device.clone(),
-                SetValue::Relative(
-                    i8::try_from(CONFIG.behaviour.on_scroll_brightness_step).unwrap_or(0),
-                ),
-                scroll_tx.clone(),
-            );
-        } else {
-            set_brightness(
-                scroll_device.clone(),
-                SetValue::Relative(
-                    i8::try_from(
-                        CONFIG
-                            .behaviour
-                            .on_scroll_brightness_step
-                            .min(u8::try_from(i8::MAX).unwrap_or(0)),
-                    )
-                    .unwrap_or(0)
-                    .saturating_neg(),
-                ),
-                scroll_tx.clone(),
-            );
-        }
+        let step_as_i8 =
+            i8::try_from(CONFIG.behaviour.on_scroll_brightness_step.min(127)).unwrap_or(0);
+
+        set_brightness(
+            scroll_device.clone(),
+            SetValue::Relative(
+                if dy < 0.0 {
+                    step_as_i8
+                } else {
+                    step_as_i8.saturating_neg()
+                },
+            ),
+            scroll_tx.clone(),
+        );
+
         glib::Propagation::Stop
     });
     container.add_controller(scroll);
@@ -229,18 +220,21 @@ fn set_brightness(
                 SetValue::Relative(relative) => {
                     if relative > 0 {
                         brightness.max_brightness.min(
-                            brightness.actual_brightness +
-                                (u64::try_from(relative)
+                            brightness.actual_brightness.saturating_add(
+                                u64::try_from(relative)
                                     .unwrap_or(0)
-                                    .saturating_mul(brightness.max_brightness)) /
-                                    100,
+                                    .saturating_mul(brightness.max_brightness)
+                                    .saturating_div(100)
+                                    .max(1),
+                            ),
                         )
                     } else {
                         brightness.actual_brightness.saturating_sub(
-                            (u64::try_from(relative.saturating_neg())
+                            u64::try_from(relative.saturating_neg())
                                 .unwrap_or(0)
-                                .saturating_mul(brightness.max_brightness)) /
-                                100,
+                                .saturating_mul(brightness.max_brightness)
+                                .saturating_div(100)
+                                .max(1),
                         )
                     }
                 },
