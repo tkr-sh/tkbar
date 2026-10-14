@@ -12,6 +12,7 @@ use {
     pipewire::{
         channel::Receiver,
         context::ContextRc,
+        device::{Device, DeviceListener},
         keys::{MEDIA_CLASS, NODE_NAME},
         main_loop::MainLoopRc,
         metadata::{Metadata, MetadataListener},
@@ -194,17 +195,29 @@ fn pipewire_loop(
 
             let _ = vol_update_tx.try_send(new_vol_state);
 
-            match cmd {
-                Cmd::IncVolume | Cmd::DecVolume => {
-                    let bytes = volume_pod(new_vol_state.percent, 2);
-                    let pod = Pod::from_bytes(&bytes).expect("volume_pod output is a valid pod");
-                    entry.node.set_param(ParamType::Props, 0, pod);
-                },
-                Cmd::ToggleMute => {
-                    let bytes = mute_pod(new_vol_state.muted);
-                    let pod = Pod::from_bytes(&bytes).expect("mute_pod output is a valid pod");
-                    entry.node.set_param(ParamType::Props, 0, pod);
-                },
+            let route_target = entry.route.and_then(|route| {
+                let device = pw.devices.get(&entry.device_id?)?;
+                Some((Rc::clone(&device.device), route))
+            });
+
+            if let Some((device, route)) = route_target {
+                let bytes = route_pod(&route, new_vol_state);
+                let pod = Pod::from_bytes(&bytes).expect("route pod is valid");
+                device.set_param(ParamType::Route, 0, pod);
+            } else {
+                match cmd {
+                    Cmd::IncVolume | Cmd::DecVolume => {
+                        let bytes = volume_pod(new_vol_state.percent, 2);
+                        let pod =
+                            Pod::from_bytes(&bytes).expect("volume_pod output is a valid pod");
+                        entry.node.set_param(ParamType::Props, 0, pod);
+                    },
+                    Cmd::ToggleMute => {
+                        let bytes = mute_pod(new_vol_state.muted);
+                        let pod = Pod::from_bytes(&bytes).expect("mute_pod output is a valid pod");
+                        entry.node.set_param(ParamType::Props, 0, pod);
+                    },
+                }
             }
         }
     });
@@ -239,6 +252,36 @@ fn pipewire_loop(
 
                         let listener = node
                             .add_listener_local()
+                            .info({
+                                let pw_state_weak = Weak::clone(&pw_state_weak);
+                                let name = name.clone();
+                                move |info| {
+                                    let Some(props) = info.props() else { return };
+                                    let device_id = props
+                                        .get("device.id")
+                                        .and_then(|id| id.parse::<u32>().ok());
+                                    let route_device = props
+                                        .get("card.profile.device")
+                                        .and_then(|dev| dev.parse::<i32>().ok());
+                                    let Some(state) = pw_state_weak.upgrade() else {
+                                        return;
+                                    };
+                                    let device = {
+                                        let mut pw = state.borrow_mut();
+                                        let Some(sink) = pw.sinks.get_mut(&name) else {
+                                            return;
+                                        };
+                                        sink.device_id = device_id.or(sink.device_id);
+                                        sink.route_device = route_device.or(sink.route_device);
+                                        device_id.and_then(|id| {
+                                            pw.devices.get(&id).map(|d| Rc::clone(&d.device))
+                                        })
+                                    };
+                                    if let Some(device) = device {
+                                        device.enum_params(0, Some(ParamType::Route), 0, u32::MAX);
+                                    }
+                                }
+                            })
                             .param({
                                 let vol_state_weak = Arc::downgrade(&vol_state);
                                 let vol_update_tx = vol_update_tx.clone();
@@ -272,12 +315,108 @@ fn pipewire_loop(
                         node.subscribe_params(&[ParamType::Props]);
                         node.enum_params(0, Some(ParamType::Props), 0, u32::MAX);
 
+                        let device_id =
+                            props.get("device.id").and_then(|id| id.parse::<u32>().ok());
+                        let route_device = props
+                            .get("card.profile.device")
+                            .and_then(|dev| dev.parse::<i32>().ok());
+
                         if let Some(state) = pw_state_weak.upgrade() {
                             state.borrow_mut().sinks.insert(
                                 name,
                                 SinkEntry {
                                     id: obj.id,
                                     node,
+                                    device_id,
+                                    route_device,
+                                    route: None,
+                                    _listener: listener,
+                                },
+                            );
+                        }
+                    },
+                    ObjectType::Device => {
+                        let Some(props) = obj.props else { return };
+
+                        if props.get(*MEDIA_CLASS) != Some("Audio/Device") {
+                            return;
+                        }
+
+                        let Some(registry) = registry_weak.upgrade() else {
+                            return;
+                        };
+
+                        let device: Device = match registry.bind(obj) {
+                            Ok(d) => d,
+                            Err(_) => return,
+                        };
+
+                        let device_id = obj.id;
+
+                        let listener = device
+                            .add_listener_local()
+                            .param({
+                                let pw_state_weak = Weak::clone(&pw_state_weak);
+                                let vol_state_weak = Arc::downgrade(&vol_state);
+                                let vol_update_tx = vol_update_tx.clone();
+                                move |_seq, id, _index, _next, param| {
+                                    if id != ParamType::Route {
+                                        return;
+                                    }
+                                    let Some(param) = param else { return };
+                                    let Some(event) = RouteEvent::parse(param) else {
+                                        return;
+                                    };
+                                    let Some(state) = pw_state_weak.upgrade() else {
+                                        return;
+                                    };
+
+                                    let mut update = None;
+                                    {
+                                        let mut pw = state.borrow_mut();
+                                        let default = pw.default_sink_name.clone();
+                                        for (name, sink) in &mut pw.sinks {
+                                            if sink.device_id != Some(device_id) ||
+                                                sink.route_device != Some(event.device)
+                                            {
+                                                continue;
+                                            }
+                                            sink.route = Some(RouteRef {
+                                                index: event.index,
+                                                device: event.device,
+                                                channels: event.channels,
+                                            });
+                                            if Some(name) == default.as_ref() {
+                                                update = Some(event.update);
+                                            }
+                                        }
+                                    }
+
+                                    if let (Some(update), Some(vol_state)) =
+                                        (update, vol_state_weak.upgrade())
+                                    {
+                                        let snapshot = {
+                                            let mut guard =
+                                                vol_state.lock().expect("mutex poisoned");
+                                            let current =
+                                                guard.get_or_insert_with(VolState::default);
+                                            current.apply_update(update);
+                                            *current
+                                        };
+                                        let _ = vol_update_tx.try_send(snapshot);
+                                    }
+                                }
+                            })
+                            .register();
+
+                        device.subscribe_params(&[ParamType::Route]);
+                        device.enum_params(0, Some(ParamType::Route), 0, u32::MAX);
+
+                        if let Some(state) = pw_state_weak.upgrade() {
+                            state.borrow_mut().devices.insert(
+                                device_id,
+                                DeviceEntry {
+                                    device: Rc::new(device),
                                     _listener: listener,
                                 },
                             );
@@ -327,7 +466,9 @@ fn pipewire_loop(
             let pw_state_weak = Rc::downgrade(&pw_state);
             move |id| {
                 if let Some(state) = pw_state_weak.upgrade() {
-                    state.borrow_mut().sinks.retain(|_, e| e.id != id);
+                    let mut pw = state.borrow_mut();
+                    pw.sinks.retain(|_, e| e.id != id);
+                    pw.devices.remove(&id);
                 }
             }
         })
@@ -386,6 +527,7 @@ fn percent_to_cubic(percent: u32) -> f32 {
 struct PwState {
     default_sink_name: Option<String>,
     sinks: HashMap<String, SinkEntry>,
+    devices: HashMap<u32, DeviceEntry>,
     // keeps alive
     _metadata: Option<(Metadata, MetadataListener)>,
 }
@@ -393,8 +535,24 @@ struct PwState {
 struct SinkEntry {
     id: u32,
     node: Node,
+    device_id: Option<u32>,
+    route_device: Option<i32>,
+    route: Option<RouteRef>,
     // keeps alive
     _listener: NodeListener,
+}
+
+#[derive(Clone, Copy)]
+struct RouteRef {
+    index: i32,
+    device: i32,
+    channels: usize,
+}
+
+struct DeviceEntry {
+    device: Rc<Device>,
+    // keeps alive
+    _listener: DeviceListener,
 }
 
 
@@ -436,11 +594,16 @@ impl VolUpdate {
         let Value::Object(obj) = value else {
             return None;
         };
+
+        Self::from_properties(&obj.properties)
+    }
+
+    fn from_properties(properties: &[Property]) -> Option<VolUpdate> {
         let mut channels: Option<f32> = None;
         let mut overall: Option<f32> = None;
         let mut muted: Option<bool> = None;
 
-        for prop in &obj.properties {
+        for prop in properties {
             if prop.key == spa::sys::SPA_PROP_channelVolumes {
                 if let Value::ValueArray(ValueArray::Float(v)) = &prop.value {
                     channels = v
@@ -469,6 +632,64 @@ impl VolUpdate {
     }
 }
 
+struct RouteEvent {
+    index: i32,
+    device: i32,
+    channels: usize,
+    update: VolUpdate,
+}
+
+impl RouteEvent {
+    fn parse(pod: &Pod) -> Option<RouteEvent> {
+        let (_rest, value) = PodDeserializer::deserialize_from::<Value>(pod.as_bytes()).ok()?;
+        let Value::Object(obj) = value else {
+            return None;
+        };
+
+        let mut index = None;
+        let mut device = None;
+        let mut props = None;
+
+        for prop in &obj.properties {
+            if prop.key == spa::sys::SPA_PARAM_ROUTE_index {
+                if let Value::Int(i) = &prop.value {
+                    index = Some(*i);
+                }
+            } else if prop.key == spa::sys::SPA_PARAM_ROUTE_device {
+                if let Value::Int(i) = &prop.value {
+                    device = Some(*i);
+                }
+            } else if prop.key == spa::sys::SPA_PARAM_ROUTE_props &&
+                let Value::Object(o) = &prop.value
+            {
+                props = Some(o);
+            }
+        }
+
+        let props = props?;
+        let channels = props
+            .properties
+            .iter()
+            .find_map(|prop| {
+                if prop.key == spa::sys::SPA_PROP_channelVolumes &&
+                    let Value::ValueArray(ValueArray::Float(v)) = &prop.value
+                {
+                    Some(v.len())
+                } else {
+                    None
+                }
+            })
+            .unwrap_or(2);
+
+        Some(RouteEvent {
+            index: index?,
+            device: device?,
+            channels: channels.max(1),
+            update: VolUpdate::from_properties(&props.properties)?,
+        })
+    }
+}
+
 const fn icon_for(state: &VolState) -> &'static str {
     if state.muted {
         "󰝟"
@@ -480,4 +701,58 @@ const fn icon_for(state: &VolState) -> &'static str {
             _ => "󱄡",
         }
     }
+}
+
+fn route_pod(route: &RouteRef, state: VolState) -> Vec<u8> {
+    let cubic = percent_to_cubic(state.percent);
+
+    let obj = Value::Object(spa::pod::Object {
+        type_: SpaTypes::ObjectParamRoute.as_raw(),
+        id: ParamType::Route.as_raw(),
+        properties: vec![
+            Property {
+                key: spa::sys::SPA_PARAM_ROUTE_index,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route.index),
+            },
+            Property {
+                key: spa::sys::SPA_PARAM_ROUTE_device,
+                flags: PropertyFlags::empty(),
+                value: Value::Int(route.device),
+            },
+            Property {
+                key: spa::sys::SPA_PARAM_ROUTE_props,
+                flags: PropertyFlags::empty(),
+                value: Value::Object(spa::pod::Object {
+                    type_: SpaTypes::ObjectParamProps.as_raw(),
+                    id: ParamType::Props.as_raw(),
+                    properties: vec![
+                        Property {
+                            key: spa::sys::SPA_PROP_channelVolumes,
+                            flags: PropertyFlags::empty(),
+                            value: Value::ValueArray(ValueArray::Float(vec![
+                                cubic;
+                                route.channels.max(1)
+                            ])),
+                        },
+                        Property {
+                            key: spa::sys::SPA_PROP_mute,
+                            flags: PropertyFlags::empty(),
+                            value: Value::Bool(state.muted),
+                        },
+                    ],
+                }),
+            },
+            Property {
+                key: spa::sys::SPA_PARAM_ROUTE_save,
+                flags: PropertyFlags::empty(),
+                value: Value::Bool(true),
+            },
+        ],
+    });
+
+    let (cursor, _len) =
+        PodSerializer::serialize(Cursor::new(Vec::new()), &obj).expect("route pod serialize");
+
+    cursor.into_inner()
 }
