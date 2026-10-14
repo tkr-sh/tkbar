@@ -17,12 +17,19 @@ struct Cli {
 fn main() {
     #[cfg(feature = "cli")]
     {
-        let cli = <Cli as clap::Parser>::parse();
+        #[cfg(not(feature = "config"))]
+        {
+            let _cli = <Cli as clap::Parser>::parse();
+        }
 
-        if let Some(config_path) = cli.config {
-            use tkbar::CLI_CONFIG_PATH;
+        #[cfg(feature = "config")]
+        {
+            let cli = <Cli as clap::Parser>::parse();
+            if let Some(config_path) = cli.config {
+                use tkbar::CLI_CONFIG_PATH;
 
-            let _ = CLI_CONFIG_PATH.set(config_path.into_boxed_path());
+                let _ = CLI_CONFIG_PATH.set(config_path.into_boxed_path());
+            }
         }
     }
 
