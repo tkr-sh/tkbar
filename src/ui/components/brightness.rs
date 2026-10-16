@@ -246,3 +246,33 @@ const fn icon_for(percent: u8) -> &'static str {
         _ => "󰃠",
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const fn b(actual: u64, max: u64) -> Brightness {
+        Brightness {
+            actual_brightness: actual,
+            max_brightness: max,
+        }
+    }
+
+    #[test]
+    fn relative_clamps_to_max_and_zero() {
+        assert_eq!(b(99, 100).apply(&Cmd::SetRelative(3)), 100);
+        assert_eq!(b(1, 100).apply(&Cmd::SetRelative(-3)), 0);
+    }
+
+    #[test]
+    fn relative_moves_at_least_one_unit_on_coarse_backlights() {
+        assert_eq!(b(3, 7).apply(&Cmd::SetRelative(3)), 4);
+        assert_eq!(b(3, 7).apply(&Cmd::SetRelative(-3)), 2);
+    }
+
+    #[test]
+    fn relative_step_is_percent_of_max() {
+        assert_eq!(b(500, 1000).apply(&Cmd::SetRelative(10)), 600);
+        assert_eq!(b(500, 1000).apply(&Cmd::SetRelative(-10)), 400);
+    }
+}
