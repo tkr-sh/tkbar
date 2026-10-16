@@ -64,6 +64,10 @@ release version:
     nu ./scripts/release.nu {{version}}
 
 [group: 'ci']
+ci-css:
+    nu ./scripts/ci-css.nu
+
+[group: 'ci']
 ci-fmt:
     cargo fmt --check
     taplo fmt --check ...(fd -e toml | lines | where { $in != 'docs/config.toml' })
@@ -72,6 +76,14 @@ ci-fmt:
 [group: 'ci']
 ci-check:
     cargo check --locked --workspace
+
+[group: 'ci']
+ci-deny:
+    cargo deny --exclude tkbar-ci check advisories bans licenses sources
+
+[group: 'ci']
+ci-machete:
+    cargo machete
 
 [group: 'ci']
 ci-clippy-features:

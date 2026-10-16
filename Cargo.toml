@@ -1,15 +1,33 @@
 [package]
+    authors = ["tkr-sh"]
+    categories = ["gui"]
     default-run = "tkbar"
+    description = "A minimalist, hardened status bar for Wayland."
     edition = "2024"
+    exclude = [
+        ".editorconfig",
+        ".github",
+        "ci",
+        "docs",
+        "flake.lock",
+        "flake.nix",
+        "justfile",
+        "resources",
+        "scripts",
+    ]
+    keywords = ["gui", "layer-shell", "security", "status-bar", "wayland"]
+    license = "GPL-3.0-or-later"
     name = "tkbar"
+    readme = "README.md"
+    repository = "https://github.com/tkr-sh/tkbar"
     version = "0.1.0"
 
 [lints]
     workspace = true
 
 [dependencies]
-    gtk4 = { version = "0.9", features = ["v4_12"] }
-    gtk4-layer-shell = "0.4"
+    gtk4 = { version = "0.11", features = ["v4_12"] }
+    gtk4-layer-shell = "0.8"
 
     # CLI
     clap = { version = "4", optional = true, features = ["derive"] }
@@ -88,7 +106,7 @@
 
     [workspace.lints.rust]
         unreachable_pub = "warn"
-        unsafe_code = "forbid"
+        unsafe_code = "deny"
 
     # <https://rust-lang.github.io/rust-clippy/master>
     [workspace.lints.clippy]

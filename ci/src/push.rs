@@ -1,8 +1,10 @@
 use {crate::nix_develop, dagger_sdk::DaggerConn};
 
 const STEPS: &[&str] = &[
-    "css",
+    "ci-css",
     "ci-fmt",
+    "ci-machete",
+    "ci-deny",
     "ci-check",
     "ci-clippy",
     "ci-test",

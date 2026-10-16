@@ -1,26 +1,12 @@
 
-def verify_version []: nothing -> string {
-    let tkbar_version = (open Cargo.toml | get package | get version)
-    let ci_version = (open ./ci/Cargo.toml | get package | get version)
-    let flake_version = (cat ./flake.nix | rg -U ' \s*pname = "tkbar";\n\s*version = "([^"]*)";' -r '$1' -N -I)
-
-    if $tkbar_version != $ci_version or $tkbar_version != $flake_version {
-        print $"There is a conflict in software version.
-This requires manual intervention.
-
-tkbar: `($tkbar_version)`
-ci: `($ci_version)`
-flake: `($flake_version)`"
-        exit 1
-    }
-
-    return $tkbar_version;
+def current_version []: nothing -> string {
+    return (open ./Cargo.toml | get package | get version)
 }
 
 
 def main [$version:string] {
     let version = ($version | str trim --left --char 'v');
-    let previous_version = (verify_version);
+    let previous_version = (current_version);
     
     print -n $"Releasing version `(ansi yellow)($previous_version)(ansi default)` => `(ansi green)($version)(ansi default)` ? [y/N] "
     let user_input = (input --numchar 1)
@@ -36,10 +22,8 @@ def main [$version:string] {
         exit 1
     }
  
-    # Tag replacement
+    # Tag replacement (Cargo.toml only; everything else derives from it)
     sed -i $"s/($previous_version)/($version)/g" ./Cargo.toml
-    sed -i $"s/($previous_version)/($version)/g" ./ci/Cargo.toml
-    sed -i $"s/($previous_version)/($version)/g" ./flake.nix
 
     cargo check
 
@@ -53,10 +37,9 @@ def main [$version:string] {
         exit 1
     }
 
-    git add ./Cargo.toml ./ci/Cargo.toml ./flake.nix
+    git add ./Cargo.toml ./Cargo.lock
     git commit -m $"🏷️ release: v($version)"
     git push origin main
     git tag $version
     git push origin tag $version
-    git push main stable
 }

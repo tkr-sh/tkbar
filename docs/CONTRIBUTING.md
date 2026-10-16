@@ -119,7 +119,10 @@ just fix     # clippy --fix + fmt + taplo
 
 ## Hard rules
 
-- **No `unsafe`.** Safe Rust only.
+- **No `unsafe` except one documented call.** Safe Rust only; the single allowed
+  exception is the `glib::setenv` call in `harden_gtk_env` (`src/main.rs`),
+  needed to seed the GTK-hardening env vars before GTK initializes. Any new
+  `unsafe` requires a strong justification and an `#[expect(unsafe_code, reason = ...)]`.
 - **No `unwrap`/`expect`/panic on externally-influenced data.** That means
   Wi-Fi SSIDs, PipeWire node parameters, and sysfs. The Wi-Fi SSID arrives
   as raw attacker-controlled bytes from nl80211 and is only ever decoded and
@@ -135,8 +138,10 @@ The CI pipeline is a Dagger pipeline in the [`ci/`](../ci) crate (see
 [`ci/src/main.rs`](../ci/src/main.rs)). It runs each recipe inside a Nix
 container via `nix develop`:
 
-- `css` — regenerate stylesheets from SCSS.
+- `ci-css` — verify the committed stylesheets match the SCSS sources.
 - `ci-fmt` — `cargo fmt --check` + `taplo fmt --check`.
+- `ci-machete` — `cargo machete` (no unused dependencies).
+- `ci-deny` — `cargo deny --exclude tkbar-ci check advisories bans licenses sources` (supply chain, shipped crate only).
 - `ci-check` — `cargo check --locked`.
 - `ci-clippy` — `cargo clippy --locked`.
 - `ci-test` — `cargo nextest run`.
@@ -153,7 +158,7 @@ with `just dagger` (needs docker or podman).
 
 - [ ] Feature-gated: optional behavior is behind a `[features]` entry, and the
       build works with `--no-default-features`.
-- [ ] No `unsafe`, no panicking on externally-influenced data.
+- [ ] No new `unsafe` (the documented `glib::setenv` call is the only exception), no panicking on externally-influenced data.
 - [ ] No new runtime dependency without justification.
 - [ ] Parser changes are covered by adversarial tests (and pass `cargo nextest run`).
 - [ ] `cargo fmt`, `cargo clippy`, and `taplo fmt` are clean; `#[allow(...)]` has a `reason`.

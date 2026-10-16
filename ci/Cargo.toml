@@ -1,12 +1,13 @@
 [package]
     edition = "2024"
+    license = "GPL-3.0-or-later"
     name = "tkbar-ci"
-    version = "0.1.0"
+    publish = false
 
 [lints]
     workspace = true
 
 [dependencies]
-    dagger-sdk = "0.21.8"
+    dagger-sdk = "0.21.10"
     eyre = "0.6"
     tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
