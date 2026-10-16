@@ -82,6 +82,9 @@
 [workspace]
     members = ["ci"]
 
+    [workspace.lints.rust]
+        unsafe_code = "forbid"
+
     # <https://rust-lang.github.io/rust-clippy/master>
     [workspace.lints.clippy]
         # Based

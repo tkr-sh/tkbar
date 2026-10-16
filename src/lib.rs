@@ -1,3 +1,4 @@
+#![forbid(unsafe_code)]
 #[cfg(feature = "cli")]
 pub use conf::CLI_CONFIG_PATH;
 pub use {crate::ui::build_window, conf::Config};
