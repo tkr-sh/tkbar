@@ -27,14 +27,7 @@ struct BatteryData {
 
 impl BatteryData {
     fn percent(self) -> u8 {
-        let percent = self.energy_now.saturating_mul(100) /
-            if self.energy_full == 0 {
-                1
-            } else {
-                self.energy_full
-            };
-
-        u8::try_from(percent.min(100)).unwrap_or(100)
+        super::percent(self.energy_now, self.energy_full)
     }
 
     const fn merge(self, r: Self) -> Self {

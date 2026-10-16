@@ -191,14 +191,7 @@ impl Brightness {
     }
 
     fn percent(&self) -> u8 {
-        let percent = self.actual_brightness.saturating_mul(100) /
-            if self.max_brightness == 0 {
-                1
-            } else {
-                self.max_brightness
-            };
-
-        u8::try_from(percent.min(100)).unwrap_or(100)
+        super::percent(self.actual_brightness, self.max_brightness)
     }
 
     fn apply(self, cmd: &Cmd) -> u64 {
