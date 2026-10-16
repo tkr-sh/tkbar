@@ -1,5 +1,8 @@
+#[cfg(feature = "battery")]
 mod battery;
+#[cfg(feature = "brightness")]
 mod brightness;
+#[cfg(feature = "clock")]
 mod clock;
 #[cfg(feature = "volume")]
 mod volume;
@@ -8,6 +11,15 @@ mod wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 mod workspaces;
 
+#[cfg(any(feature = "battery", feature = "brightness", feature = "wifi"))]
+use std::{thread, time::Duration};
+
+#[cfg(feature = "battery")]
+pub(crate) use battery::battery;
+#[cfg(feature = "brightness")]
+pub(crate) use brightness::brightness;
+#[cfg(feature = "clock")]
+pub(crate) use clock::clock;
 #[cfg(feature = "volume")]
 pub(crate) use volume::volume;
 #[cfg(feature = "wifi")]
@@ -18,9 +30,7 @@ use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, prelude::*},
     gtk4 as gtk,
-    std::{thread, time::Duration},
 };
-pub(crate) use {battery::battery, brightness::brightness, clock::clock};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
@@ -30,12 +40,15 @@ pub enum Component {
     #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
     Workspaces,
     Spacer,
+    #[cfg(feature = "battery")]
     Battery,
     #[cfg(feature = "wifi")]
     Wifi,
+    #[cfg(feature = "brightness")]
     Brightness,
     #[cfg(feature = "volume")]
     Volume,
+    #[cfg(feature = "clock")]
     Clock,
 }
 
@@ -51,17 +64,21 @@ impl Component {
             #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
             Component::Workspaces => bar.append(&workspaces()),
             Component::Spacer => bar.append(&spacer()),
+            #[cfg(feature = "battery")]
             Component::Battery => bar.append(&battery()),
             #[cfg(feature = "wifi")]
             Component::Wifi => bar.append(&wifi()),
+            #[cfg(feature = "brightness")]
             Component::Brightness => bar.append(&brightness()),
             #[cfg(feature = "volume")]
             Component::Volume => bar.append(&volume()),
+            #[cfg(feature = "clock")]
             Component::Clock => bar.append(&clock()),
         }
     }
 }
 
+#[cfg(any(feature = "battery", feature = "brightness", feature = "wifi"))]
 pub(crate) fn spawn_poller<S, P>(
     interval: Duration,
     mut poll: P,
@@ -96,6 +113,7 @@ pub(crate) fn spacer() -> GtkBox {
     spacer
 }
 
+#[cfg(any(feature = "battery", feature = "brightness"))]
 fn percent(current: u64, max: u64) -> u8 {
     let percent = current.saturating_mul(100) / if max == 0 { 1 } else { max };
 
@@ -104,7 +122,7 @@ fn percent(current: u64, max: u64) -> u8 {
 
 
 
-#[cfg(test)]
+#[cfg(all(test, any(feature = "battery", feature = "brightness")))]
 mod tests {
     use super::percent;
 

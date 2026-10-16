@@ -39,12 +39,13 @@ There are several categories of features in [`Cargo.toml`](../Cargo.toml):
   workspace strip code lives in `src/ui/components/workspaces/`, one module
   per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
   model.
-- The feature-gated components: `volume` (`pipewire`) and `wifi`
-  (`neli-wifi`), plus the `doc` feature used only to regenerate the default
+- The feature-gated components: `battery`, `brightness`, `clock`, `volume`
+  (`pipewire`), and `wifi` (`neli-wifi`). The `all_components` bundle enables
+  all five at once. The `doc` feature is used only to regenerate the default
   configuration.
 
-The default is `black` + `cli` + `config` + `niri` + `volume` + `wifi`
-(`default = ["black", "cli", "config", "niri", "volume", "wifi"]`).
+The default is `all_components` + `black` + `cli` + `config` + `niri`
+(`default = ["all_components", "black", "cli", "config", "niri"]`).
 
 **Exactly one color must be enabled.** This is enforced by a `const` assert in
 [`src/lib.rs`](../src/lib.rs):

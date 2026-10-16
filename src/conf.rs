@@ -226,12 +226,15 @@ fn default_components() -> Vec<Component> {
         #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
         Component::Workspaces,
         Component::Spacer,
+        #[cfg(feature = "battery")]
         Component::Battery,
         #[cfg(feature = "wifi")]
         Component::Wifi,
+        #[cfg(feature = "brightness")]
         Component::Brightness,
         #[cfg(feature = "volume")]
         Component::Volume,
+        #[cfg(feature = "clock")]
         Component::Clock,
     ]
 }

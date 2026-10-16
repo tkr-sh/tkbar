@@ -138,7 +138,7 @@ tkbar.packages.${system}.default.override {
   color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
   workspace = "hyprland";  # one of: niri hyprland sway
   withConfig = false;      # set false to drop the optional TOML/CSS config
-  components = [ "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop both
+  components = [ "battery" "brightness" "clock" "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop them all
 }
 ```
 
@@ -147,14 +147,15 @@ tkbar.packages.${system}.default.override {
   `"sway"`); exactly one is compiled in.
 - `withConfig` toggles the optional `config` feature.
 - `components` is the list of feature-gated components to build in. The
-  supported names are `"volume"` and `"wifi"`; set it to `[ ]` to ship a bar
-  without either widget. Each name maps 1:1 to a Cargo feature, and unsupported
-  names fail the build with a message.
+  supported names are `"battery"`, `"brightness"`, `"clock"`, `"volume"`, and
+  `"wifi"`; set it to `[ ]` to ship a bar without any of those widgets. Each
+  name maps 1:1 to a Cargo feature, and unsupported names fail the build with a
+  message.
 
 The plain cargo equivalent is:
 
 ```sh
-cargo build --no-default-features --features purple,hyprland,wifi,volume
+cargo build --no-default-features --features purple,hyprland,battery,brightness,clock,wifi,volume
 ```
 
 ## NixOS module

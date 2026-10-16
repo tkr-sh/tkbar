@@ -5,6 +5,16 @@
 //! minimal dependency tree, since every crate is code running with your full
 //! user privileges. See the README security notes.
 
+#[cfg(any(
+    feature = "battery",
+    feature = "brightness",
+    feature = "config",
+    feature = "hyprland",
+    feature = "niri",
+    feature = "sway",
+    feature = "volume",
+    feature = "wifi"
+))]
 pub(crate) fn warn(component: &str, message: &str) {
     eprintln!("tkbar: warning: {component}: {message}");
 }

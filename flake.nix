@@ -146,15 +146,13 @@
             #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
             #   workspace = "hyprland";         # one of: niri hyprland sway
             #   withConfig = false;             # set false to drop the optional TOML/CSS config
-            #   components = [ "wifi" "volume" ];        # feature-gated components to build in
+            #   components = [ "battery" "brightness" "clock" "wifi" "volume" ];  # feature-gated components to build in
             # }
             packages.default = pkgs.lib.makeOverridable
-                ({ color ? "black", workspace ? "niri", withConfig ? true, components ? [ "wifi" "volume" ] }:
+                ({ color ? "black", workspace ? "niri", withConfig ? true, components ? [ "battery" "brightness" "clock" "wifi" "volume" ] }:
                 let
-                    # Component names mapping 1:1 to Cargo features. Both
-                    # "wifi" and "volume" are feature-gated; "brightness" will
-                    # follow once its module is gated.
-                    allowedComponents = [ "volume" "wifi" ];
+                    # Component names mapping 1:1 to Cargo features.
+                    allowedComponents = [ "battery" "brightness" "clock" "volume" "wifi" ];
                     withVolume = builtins.elem "volume" components;
                     invalidComponents =
                         builtins.filter (c: !(builtins.elem c allowedComponents)) components;
@@ -164,7 +162,6 @@
                     "tkbar: unsupported component(s) in 'components': "
                     + builtins.concatStringsSep ", " invalidComponents
                     + ". Allowed: " + builtins.concatStringsSep ", " allowedComponents
-                    + " (brightness will follow once feature-gated)"
                 )
                 else rustPlatform.buildRustPackage {
                     pname = "tkbar";
