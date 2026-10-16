@@ -18,13 +18,6 @@ pub struct Config {
     #[cfg_attr(feature = "config", serde(default))]
     pub behaviour: Behaviour,
     #[cfg_attr(feature = "config", serde(default))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway",)),
-        expect(
-            dead_code,
-            reason = "Unused when no WM supported. Might change when more features are added to security."
-        )
-    )]
     pub security: Security,
 }
 
@@ -36,20 +29,12 @@ pub struct Behaviour {
     pub components: Vec<Component>,
     /// When a workspace is empty, should it be shown ?
     #[cfg_attr(feature = "config", serde(default = "default_true"))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(dead_code, reason = "Unused when no WM supported")
-    )]
     pub should_show_empty_workspace: bool,
     #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_brightness_step: u8,
     #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_volume_step: u8,
     #[cfg_attr(feature = "config", serde(default = "default_10"))]
-    #[cfg_attr(
-        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-        expect(dead_code, reason = "Unused when no WM supported")
-    )]
     pub workspace_count: u8,
 }
 
@@ -89,10 +74,6 @@ pub struct Security {
     ///
     /// When disabled (the safe default), only the numeric workspace ID is
     /// displayed and no untrusted string reaches the rendering pipeline.
-    // #[cfg_attr(
-    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-    //     expect(dead_code, reason = "Unused when no WM supported")
-    // )]
     pub should_allow_workspace_label: bool,
 }
 

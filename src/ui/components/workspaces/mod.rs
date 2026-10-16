@@ -26,6 +26,7 @@ struct Ws {
     is_focused: bool,
 }
 
+#[cfg(any(feature = "hyprland", feature = "niri", feature = "sway"))]
 pub fn workspaces() -> GtkBox {
     let container = GtkBox::new(CONFIG.style.position.orientation(), 4);
     container.add_css_class("workspaces");
