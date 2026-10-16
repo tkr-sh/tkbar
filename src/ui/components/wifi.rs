@@ -92,13 +92,41 @@ fn query() -> Option<WifiState> {
     Some(WifiState::Disconnected)
 }
 
+const REPLACEMENT_CHAR: char = '�';
+
+/// Also sanitizes the SSID into a "safe" [`String`] to display.
 fn ssid_to_string(ssid: &[u8]) -> String {
     String::from_utf8_lossy(ssid)
         .chars()
-        .filter(|c| !c.is_control())
+        .map(|c| if is_malicious(c) { REPLACEMENT_CHAR } else { c })
         .collect()
 }
 
+/// Source: <https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt>: `Default_Ignorable_Code_Point`
+const fn is_malicious(c: char) -> bool {
+    c.is_control() ||
+        matches!(
+            c,
+            // <https://www.unicode.org/Public/UCD/latest/ucd/DerivedCoreProperties.txt>: `Default_Ignorable_Code_Point`
+            '\u{00AD}' |
+            '\u{034F}' |
+            '\u{061C}' |
+            '\u{115F}'..='\u{1160}' |
+            '\u{17B4}'..='\u{17B5}' |
+            '\u{180B}'..='\u{180F}' |
+            '\u{200B}'..='\u{200F}' |
+            '\u{202A}'..='\u{202E}' |
+            '\u{2060}'..='\u{206F}' |
+            '\u{3164}' |
+            '\u{FE00}'..='\u{FE0F}' |
+            '\u{FEFF}' |
+            '\u{FFA0}' |
+            '\u{FFF0}'..='\u{FFF8}' |
+            '\u{1BCA0}'..='\u{1BCA3}' |
+            '\u{1D173}'..='\u{1D17A}' |
+            '\u{E0000}'..='\u{E0FFF}'
+        )
+}
 
 fn dbm_to_percent(dbm: i32) -> u32 {
     let scaled = dbm.saturating_add(100).saturating_mul(2);
@@ -138,23 +166,49 @@ mod tests {
     }
 
     #[test]
-    fn malicious_ssid_ansi_injection_is_inert() {
-        let out = ssid_to_string(b"\x1b[31mEVIL\x1b[0m");
-        assert!(out.chars().all(|c| !c.is_control()));
-        assert_eq!(out, "[31mEVIL[0m");
+    fn malicious_ssid_control_chars_are_marked() {
+        assert_eq!(
+            ssid_to_string(b"\x1b[31mEVIL\x1b[0m"),
+            "\u{FFFD}[31mEVIL\u{FFFD}[0m"
+        );
+        assert_eq!(
+            ssid_to_string(b"\x01Home\x7f\x0aNet\x00"),
+            "\u{FFFD}Home\u{FFFD}\u{FFFD}Net\u{FFFD}"
+        );
     }
 
     #[test]
-    fn malicious_ssid_control_chars_are_stripped() {
-        let out = ssid_to_string(b"\x01\x02Home\x7f\x0aNet\x00");
-        assert!(out.chars().all(|c| !c.is_control()));
-        assert_eq!(out, "HomeNet");
+    fn malicious_ssid_format_chars_are_marked() {
+        // RLO would otherwise render the tail reversed and hide it.
+        assert_eq!(
+            ssid_to_string("Free_WiFi\u{202E}moc.knab".as_bytes()),
+            "Free_WiFi\u{FFFD}moc.knab"
+        );
+        assert_eq!(
+            ssid_to_string("Ho\u{200B}me\u{FEFF}Net".as_bytes()),
+            "Ho\u{FFFD}me\u{FFFD}Net"
+        );
     }
 
     #[test]
-    fn malicious_ssid_invalid_utf8_does_not_panic() {
-        let out = ssid_to_string(&[0xff, 0xfe, 0xfa, b'A']);
-        assert!(out.chars().all(|c| !c.is_control()));
-        assert!(out.contains('A'));
+    fn malicious_ssid_invalid_utf8_uses_the_same_marker() {
+        assert_eq!(ssid_to_string(&[0xff, b'A', 0xfe]), "\u{FFFD}A\u{FFFD}");
+    }
+
+    #[test]
+    fn legitimate_ssids_are_untouched() {
+        for ssid in ["家のWiFi", "Café ☕", "Wi-Fi (5 GHz)"] {
+            assert_eq!(ssid_to_string(ssid.as_bytes()), ssid);
+        }
+    }
+
+    #[test]
+    fn output_is_always_displayable() {
+        let all: String = (0..=0x0010_FFFF_u32).filter_map(char::from_u32).collect();
+        assert!(
+            ssid_to_string(all.as_bytes())
+                .chars()
+                .all(|c| !is_malicious(c))
+        );
     }
 }
