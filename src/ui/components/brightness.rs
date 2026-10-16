@@ -68,11 +68,11 @@ pub fn brightness() -> GtkBox {
     });
 
     let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<Cmd>();
-    let cmd_device = device.clone();
-    thread::spawn(move || {
-        if let Some(device) = cmd_device.as_deref() {
+    if let Some(device) = device {
+        let cmd_device = device.clone();
+        thread::spawn(move || {
             for cmd in cmd_rx {
-                let Some(mut brightness) = Brightness::from_path(device) else {
+                let Some(mut brightness) = Brightness::from_path(&cmd_device) else {
                     crate::log::warn("brightness", "device vanished");
                     continue;
                 };
@@ -89,8 +89,8 @@ pub fn brightness() -> GtkBox {
                     },
                 }
             }
-        }
-    });
+        });
+    }
 
     glib::spawn_future_local(glib::clone!(
         #[weak]
@@ -203,7 +203,7 @@ impl Brightness {
 
     fn apply(self, cmd: &Cmd) -> u64 {
         match cmd {
-            Cmd::SetAbsolute(absolute) => *absolute,
+            Cmd::SetAbsolute(absolute) => (*absolute).clamp(0, self.actual_brightness),
             Cmd::SetRelative(relative) => {
                 if *relative > 0 {
                     self.max_brightness.min(
