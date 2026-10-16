@@ -8,8 +8,8 @@
     workspace = true
 
 [dependencies]
-    gtk4 = { version = "0.9", features = ["v4_12"] }
-    gtk4-layer-shell = "0.4"
+    gtk4 = { version = "0.11", features = ["v4_12"] }
+    gtk4-layer-shell = "0.8"
 
     # CLI
     clap = { version = "4", optional = true, features = ["derive"] }
@@ -88,7 +88,7 @@
 
     [workspace.lints.rust]
         unreachable_pub = "warn"
-        unsafe_code = "forbid"
+        unsafe_code = "deny"
 
     # <https://rust-lang.github.io/rust-clippy/master>
     [workspace.lints.clippy]

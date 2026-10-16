@@ -59,7 +59,7 @@ A minimalist, hardened status bar for Wayland.
 - 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
 - ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature; build with `--no-default-features --features <color>` and no parser is linked at all.
-- 🔒 **Hardened** — no `unsafe`, no network code, no dynamic loading, no panics on external data, a minimal, auditable dependency tree, and a GTK stack trimmed at startup: no GPU driver, no D-Bus, no image loaders. Measured, not claimed (see [Security](#-security)).
+- 🔒 **Hardened** — safe Rust apart from one audited `unsafe` call that seeds the GTK-hardening env vars at startup, no network code, no dynamic loading, no panics on external data, a minimal, auditable dependency tree, and a GTK stack trimmed at startup: no GPU driver, no D-Bus, no image loaders. Measured, not claimed (see [Security](#-security)).
 - 💻 **CLI** — optional `clap` feature gate provides `--help`, `--version`, and `--config <path>` flags for overriding the configuration file path at runtime.
 - 🚧 **Coming soon** — optional `logging` (the `log` crate) feature gate, for people who want more batteries included.
 
@@ -158,8 +158,10 @@ path for that invocation only.
 ## 🔒 Security
 
 A status bar runs unsandboxed with your full user privileges, so attack surface
-is taken seriously: minimal dependencies, no `unsafe` (enforced by
-`#![forbid(unsafe_code)]`), no panics on external data, no network code, no
+is taken seriously: minimal dependencies, safe Rust — the library is
+`#![forbid(unsafe_code)]`, and the only `unsafe` in the project is a single
+audited `glib::setenv` call at startup, allowed with `#[expect(unsafe_code)]`
+— no panics on external data, no network code, no
 dynamic loading, a pinned, reproducible build, and a GTK stack stripped of
 everything the bar does not draw with.
 

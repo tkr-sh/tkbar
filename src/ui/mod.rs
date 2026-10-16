@@ -58,7 +58,7 @@ pub fn build_window() {
 
     window.init_layer_shell();
     window.set_layer(Layer::Top);
-    window.set_namespace("tkbar");
+    window.set_namespace(Some("tkbar"));
 
     for edge in CONFIG.style.position.anchors() {
         window.set_anchor(edge, true);

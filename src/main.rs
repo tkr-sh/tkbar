@@ -46,9 +46,16 @@ fn main() {
 }
 
 /// <https://docs.gtk.org/gtk4/running.html>
+#[expect(
+    unsafe_code,
+    reason = "glib::setenv is unsafe: it mutates the global C environ. This runs at \
+        the start of main, before GTK init and before any thread is spawned, so no \
+        other thread can observe the environment concurrently."
+)]
 fn harden_gtk_env() {
     let set = |k, v| {
-        let _ = glib::setenv(k, v, true);
+        // SAFETY: called before GTK init, while still single-threaded.
+        let _ = unsafe { glib::setenv(k, v, true) };
     };
 
     // no image loaders

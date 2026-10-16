@@ -50,7 +50,13 @@ of which can reach a remote peer.
 
 These are structural, compile-time or design constraints, not runtime checks:
 
-- **Safe Rust, no `unsafe`.** The crate contains no `unsafe` code.
+- **Safe Rust, one audited `unsafe` call.** The library is
+  `#![forbid(unsafe_code)]`. The only `unsafe` in the project is a single
+  `glib::setenv` call in `harden_gtk_env` (`src/main.rs`), which runs before GTK
+  initializes and before any thread is spawned. `unsafe_code` is `deny` at the
+  workspace level and the call is explicitly allowed with
+  `#[expect(unsafe_code, reason = ...)]`; any additional `unsafe` needs a strong
+  justification.
 - **No panics on externally-influenced data.** The Wi-Fi SSID arrives as raw,
   attacker-controlled bytes from a nearby access point via nl80211; it is
   decoded lossily and sanitised — control characters and default-ignorable code
