@@ -18,13 +18,13 @@ pub struct Config {
     #[cfg_attr(feature = "config", serde(default))]
     pub behaviour: Behaviour,
     #[cfg_attr(feature = "config", serde(default))]
-    // #[cfg_attr(
-    //     not(any(feature = "niri", feature = "hyprland", feature = "sway",)),
-    //     expect(
-    //         dead_code,
-    //         reason = "Unused when no WM supported. Might change when more features are added to security."
-    //     )
-    // )]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland", feature = "sway",)),
+        expect(
+            dead_code,
+            reason = "Unused when no WM supported. Might change when more features are added to security."
+        )
+    )]
     pub security: Security,
 }
 
@@ -32,24 +32,24 @@ pub struct Config {
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
 #[cfg_attr(feature = "config", serde(default, deny_unknown_fields))]
 pub struct Behaviour {
-    // #[cfg_attr(feature = "config", serde(default = "default_components"))]
+    #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
     /// When a workspace is empty, should it be shown ?
-    // #[cfg_attr(feature = "config", serde(default = "default_true"))]
-    // #[cfg_attr(
-    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-    //     expect(dead_code, reason = "Unused when no WM supported")
-    // )]
+    #[cfg_attr(feature = "config", serde(default = "default_true"))]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+        expect(dead_code, reason = "Unused when no WM supported")
+    )]
     pub should_show_empty_workspace: bool,
-    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_brightness_step: u8,
-    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
+    #[cfg_attr(feature = "config", serde(default = "default_3"))]
     pub on_scroll_volume_step: u8,
-    // #[cfg_attr(feature = "config", serde(default = "default_3"))]
-    // #[cfg_attr(
-    //     not(any(feature = "niri", feature = "hyprland", feature = "sway")),
-    //     expect(dead_code, reason = "Unused when no WM supported")
-    // )]
+    #[cfg_attr(feature = "config", serde(default = "default_10"))]
+    #[cfg_attr(
+        not(any(feature = "niri", feature = "hyprland", feature = "sway")),
+        expect(dead_code, reason = "Unused when no WM supported")
+    )]
     pub workspace_count: u8,
 }
 
