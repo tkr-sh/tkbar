@@ -5,10 +5,7 @@ use {
     std::{
         fs,
         path::{Path, PathBuf},
-        sync::{
-            LazyLock,
-            atomic::{AtomicBool, AtomicU8, Ordering},
-        },
+        sync::atomic::{AtomicBool, AtomicU8, Ordering},
         time::Duration,
     },
 };
@@ -41,8 +38,8 @@ impl BatteryData {
 
 const POLL_INTERVAL_PERCENT: Duration = Duration::from_secs(10);
 const POLL_INTERVAL_CHARGING: Duration = Duration::from_millis(500);
-static IS_CHARGING: LazyLock<AtomicBool> = LazyLock::new(|| AtomicBool::new(false));
-static PERCENT: LazyLock<AtomicU8> = LazyLock::new(|| AtomicU8::new(100));
+static IS_CHARGING: AtomicBool = AtomicBool::new(false);
+static PERCENT: AtomicU8 = AtomicU8::new(100);
 const CRITICAL_PERCENT: u8 = 15;
 
 pub fn battery() -> GtkBox {
