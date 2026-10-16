@@ -12,44 +12,68 @@ With the `config` feature, the bar reads
 [`src/conf.rs`](../src/conf.rs).
 
 The path can be overridden at runtime with the `--config <PATH>` CLI flag
-(requires the `cli` feature, enabled by default). When `--config` is provided,
-the bar reads from the specified path instead of the default XDG location.
+(requires the `cli` and `config` features, both enabled by default). When
+`--config` is provided, the bar reads from the specified path instead of the
+default XDG location.
 
-### Fields
+The file is organised in three optional tables — `[style]`, `[behaviour]`, and
+`[security]`. Every table and every field has a default, so a partial (or even
+empty) file is valid, and a missing file falls back to the hardcoded default.
+
+### `[style]`
 
 | Field | Type | Default | Description |
 | --- | --- | --- | --- |
 | `position` | `left` \| `right` \| `top` \| `bottom` | `left` | `left`/`right` give a vertical bar anchored to the top and bottom edges; `top`/`bottom` give a horizontal bar anchored to the left and right edges. |
 | `bar_size_px` | `usize` | `72` | Bar thickness — width for a vertical bar, height for a horizontal one. |
+
+### `[behaviour]`
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
 | `components` | list | *(see below)* | Ordered list of widgets to render. |
+| `should_show_empty_workspace` | `bool` | `true` | Render a button for every workspace, including empty ones. |
+| `on_scroll_brightness_step` | `u8` | `3` | Percentage points added or removed per scroll notch on the brightness widget. |
+| `on_scroll_volume_step` | `u8` | `3` | Percentage points added or removed per scroll notch on the volume widget. |
+| `workspace_count` | `u8` | `10` | Number of workspace slots to synthesise when fewer real workspaces exist. |
+
+### `[security]`
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `should_allow_workspace_label` | `bool` | `false` | Display custom workspace names instead of numeric IDs. Workspace names are untrusted input, so this is off by default. |
 
 ### `components`
 
-Each entry is either an untagged string for a built-in component, or an inline
-table of the form `{ logo = "..." }` for the logo glyph.
+Each entry is either a string naming a built-in component, or an inline table
+of the form `{ logo = "..." }` for the logo glyph.
 
 Built-in string names:
 
-- `workspaces`
+- `workspaces` (needs a workspace backend feature)
 - `spacer`
 - `battery`
-- `wifi`
+- `wifi` (needs the `wifi` feature)
 - `brightness`
-- `volume`
+- `volume` (needs the `volume` feature)
 - `clock`
 
 Inline table:
 
-- `{ logo = "\u{e0003}" }` — the logo glyph (a single character).
+- `{ logo = "󱄅" }` — the logo glyph (a single character).
 
 The `Component` enum is defined in
-[`src/ui/components/mod.rs`](../src/ui/components/mod.rs).
+[`src/ui/components/mod.rs`](../src/ui/components/mod.rs). A name whose
+component is compiled out is rejected as an unknown variant.
 
 ### Full example
 
 ```toml
+[style]
 position = "left"
 bar_size_px = 72
+
+[behaviour]
 components = [
     { logo = "󱄅" },
     "workspaces",
@@ -60,7 +84,17 @@ components = [
     "volume",
     "clock",
 ]
+should_show_empty_workspace = true
+on_scroll_brightness_step = 3
+on_scroll_volume_step = 3
+workspace_count = 10
+
+[security]
+should_allow_workspace_label = false
 ```
+
+This is exactly [`docs/config.toml`](./config.toml), generated from the
+hardcoded defaults by `just doc`.
 
 ### Strictness
 
@@ -104,7 +138,7 @@ tkbar.packages.${system}.default.override {
   color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
   workspace = "hyprland";  # one of: niri hyprland sway
   withConfig = false;      # set false to drop the optional TOML/CSS config
-  components = [ "wifi" ]; # feature-gated components to build in; set [ ] to drop wifi
+  components = [ "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop both
 }
 ```
 
@@ -112,15 +146,15 @@ tkbar.packages.${system}.default.override {
 - `workspace` selects the compositor backend (`"niri"`, `"hyprland"`, or
   `"sway"`); exactly one is compiled in.
 - `withConfig` toggles the optional `config` feature.
-- `components` is the list of feature-gated components to build in. For now
-  only `"wifi"` is supported (a `"brightness"` and an `"audio"` component will
-  follow); set it to `[ ]` to ship a bar with no wifi widget. Each name maps
-  1:1 to a Cargo feature, and unsupported names fail the build with a message.
+- `components` is the list of feature-gated components to build in. The
+  supported names are `"volume"` and `"wifi"`; set it to `[ ]` to ship a bar
+  without either widget. Each name maps 1:1 to a Cargo feature, and unsupported
+  names fail the build with a message.
 
 The plain cargo equivalent is:
 
 ```sh
-cargo build --no-default-features --features purple,hyprland,wifi
+cargo build --no-default-features --features purple,hyprland,wifi,volume
 ```
 
 ## NixOS module

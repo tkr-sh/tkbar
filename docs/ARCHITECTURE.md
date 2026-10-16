@@ -1,8 +1,8 @@
 # Architecture
 
 A minimalist GTK4 layer-shell status bar for the `niri`, `Hyprland`, and `sway`
-Wayland compositors. The whole bar is a single window that is a GTK
-`ApplicationWindow` registered as a layer-shell surface.
+Wayland compositors. The whole bar is a single window that is a GTK `Window`
+registered as a layer-shell surface.
 
 ## Crate layout
 
@@ -17,8 +17,8 @@ The `tkbar` crate:
 
 ```
 src/
-├── main.rs        entry point; builds the GTK Application and wires callbacks
-├── lib.rs         CSS/themes (THEME_CSS), re-exports build_window
+├── main.rs        entry point; parses the CLI, inits GTK, loads CSS, runs the bar
+├── lib.rs         CSS/themes (THEME_CSS), init_gtk, re-exports build_window
 ├── conf.rs        global CONFIG: LazyLock<Config>
 ├── log.rs         eprintln!-only logging
 ├── ui/
@@ -35,22 +35,23 @@ src/
 │           └── sway.rs    sway/i3 IPC via swayipc (sway feature)
 ```
 
-- **`main.rs`** — CLI parsing via `clap` (feature `cli`), then
-  `Application::builder().application_id(APP_ID)`; on startup
-  calls `load_css()`, on activate calls `build_window(app)`.
-- **`lib.rs`** — declares the modules, defines `THEME_CSS` (selected by the
-  active color feature), loads the optional user CSS, and re-exports
-  `build_window`. `APP_ID = "dev.tk.tkbar"`.
+- **`main.rs`** — parses the CLI via `clap` (feature `cli`), disables the
+  gdk-pixbuf image loaders, calls `init_gtk()`, `load_css()`, and
+  `build_window()`, then runs a `glib::MainLoop`.
+- **`lib.rs`** — declares the modules, provides `init_gtk()` (GTK
+  initialization with an actionable error if there is no display), defines
+  `THEME_CSS` (selected by the active color feature), loads the optional user
+  CSS, and re-exports `build_window`.
 - **`conf.rs`** — the global `CONFIG: std::sync::LazyLock<Config>` (feature
   `config`), the `Config` struct and the hardcoded defaults.
 - **`log.rs`** — `warn(component, message)` and `error(component, message)`,
   both `eprintln!`. No logging framework.
-- **`ui/mod.rs`** — `build_window` builds the `ApplicationWindow`, calls
+- **`ui/mod.rs`** — `build_window` builds the `Window`, calls
   `init_layer_shell()`, sets the layer, anchors, and sole exclusive zone, then
-  assembles the `bar` `GtkBox` from `CONFIG`. `BarPosition` maps to an
-  `Orientation` and a set of `Edge` anchors.
-- **`ui/components/*`** — individual widgets; each is a pair of a `GtkBox`
-  (icon + value labels) and the code that feeds it.
+  assembles the `bar` `GtkBox` from `CONFIG.behaviour.components`. `BarPosition`
+  maps to an `Orientation` and a set of `Edge` anchors.
+- **`ui/components/*`** — individual widgets; most are a `GtkBox` holding an
+  icon and a value label, paired with the code that feeds it.
 
 ## The three background patterns
 
@@ -71,7 +72,8 @@ The GTK side uses `glib::spawn_future_local` with `glib::clone!` and
 `#[weak]`/`#[upgrade_or]` (or `#[upgrade_or_default]`) to update widgets while
 the container is alive. Used by `battery`, `brightness`, and `wifi`.
 
-Poll intervals: `battery`/`brightness` 500 ms, `wifi` 5 s.
+Poll intervals: `battery` 10 s for percent and 500 ms for the charging flag,
+`brightness` 500 ms, `wifi` 5 s.
 
 ### 2. Event-driven pattern (`workspaces/`)
 
@@ -80,8 +82,9 @@ subscribes to workspace/window events, feeding a channel on a dedicated thread. 
 GTK side rebuilds the workspace buttons on each update. Click handlers spawn a
 thread per `focus_workspace` call so the main loop never blocks on IPC.
 
-Exactly one backend is compiled in at build time (`niri`, `hyprland`, or
-`sway`). Each exposes the same pair of functions — `event_loop(tx)` and
+At most one backend is compiled in at build time (`niri`, `hyprland`, or
+`sway`; the default build enables `niri`). Each exposes the same pair of
+functions — `event_loop(tx)` and
 `focus_workspace(id)` — over the shared `Ws` model in `workspaces/mod.rs`:
 
 - `niri.rs` sends an `EventStream` request and reads `WorkspacesChanged`/
@@ -99,20 +102,21 @@ It binds the default sink node and the `default` metadata object, receives
 volume/mute parameter updates as they change, and pushes the resulting state over
 an `async_channel`. Scroll and click handlers send `Cmd` values back over a
 `pipewire::channel`; the loop applies them by writing SPA pods to the sink node
-and reports the new state. No external process is spawned.
+(or to its route on the owning device when the sink is part of a card) and
+reports the new state. No external process is spawned.
 
 All patterns guarantee the GTK main loop only ever does cheap widget updates.
 
 ## Config flow
 
 ```
-main (CLI --config)  →  CLI_CONFIG_PATH (Option<PathBuf>)  →  CONFIG (LazyLock<Config>, conf.rs)  →  widgets
+main (CLI --config)  →  CLI_CONFIG_PATH (OnceLock<Box<Path>>)  →  CONFIG (LazyLock<Config>, conf.rs)  →  widgets
 ```
 
 Widgets read the global `CONFIG` directly, e.g.
 `CONFIG.style.position.orientation()` selects vertical/horizontal layout,
-`CONFIG.style.position.anchors()` sets the layer-shell edges, and `CONFIG.components`
-drives widget construction in `build_inner_window`.
+`CONFIG.style.position.anchors()` sets the layer-shell edges, and
+`CONFIG.behaviour.components` drives widget construction in `build_inner_window`.
 
 ## Theme system
 

@@ -31,7 +31,9 @@ input for *any* client.
 
 1. **Wi-Fi SSIDs** — any nearby access point can broadcast an arbitrary SSID;
    it reaches the bar as raw, attacker-controlled bytes from the nl80211
-   netlink socket. This is the only remotely-influenced input.
+   netlink socket. This is the only remotely-influenced input. Workspace names
+   from the compositor are also treated as untrusted and are hidden unless
+   `should_allow_workspace_label` is enabled.
 2. **Daemon responses** — PipeWire node parameters (volume/mute); local, but
    produced by a daemon that talks to every local client.
 3. **The configuration file** — writable by anything with access to your home
@@ -51,11 +53,12 @@ These are structural, compile-time or design constraints, not runtime checks:
 - **Safe Rust, no `unsafe`.** The crate contains no `unsafe` code.
 - **No panics on externally-influenced data.** The Wi-Fi SSID arrives as raw,
   attacker-controlled bytes from a nearby access point via nl80211; it is
-  decoded lossily and stripped of control characters, then only ever displayed
-   as a tooltip. PipeWire node parameters and sysfs inputs are parsed with
-   fallible `parse().ok()?` chains that fail closed — malformed input makes a
-   widget keep its previous state, never crash the bar. `panic = "abort"` is set
-   in the release profile.
+  decoded lossily and sanitised — control characters and default-ignorable code
+  points are replaced with the Unicode replacement character — then only ever
+  displayed as a tooltip. PipeWire node parameters and sysfs inputs are parsed
+  with fallible `parse().ok()?` chains that fail closed — malformed input makes
+  a widget keep its previous state, never crash the bar. `panic = "abort"` is
+  set in the release profile.
 - **No network code.** No HTTP, no DNS, no listening sockets.
 - **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no
   webview. GTK's image-loading machinery is neutered: at startup the bar points
@@ -65,10 +68,11 @@ These are structural, compile-time or design constraints, not runtime checks:
   (`include_str!`); the only runtime-loaded content is the optional
   `~/.config/tkbar/style.css` (behind the `config` feature), which is plain
   CSS data and cannot execute code.
-- **Control-character stripping of the SSID.** SSIDs are arbitrary
-  attacker-controlled bytes; they are stripped of control characters (including
-  ANSI escape sequences) before being *displayed* as a tooltip, never
-  interpreted.
+- **SSID sanitisation.** SSIDs are arbitrary attacker-controlled bytes; before
+  being *displayed* as a tooltip they are decoded lossily and every control
+  character or default-ignorable code point (ANSI escape sequences, bidi
+  overrides, zero-width characters, ...) is replaced with the Unicode
+  replacement character. They are never interpreted.
 - **Strict typed config.** TOML has no code execution, aliases, or external
   includes; parsing is strict and typed (`deny_unknown_fields`). An attacker
   who can write your config can change the layout, and nothing more.

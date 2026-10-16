@@ -20,17 +20,18 @@ convenience.
 - **Everything is feature-gated.** New behavior is opt-in via Cargo features,
   not a new default dependency.
 
-See the the README's [Security](../README.md#security) section and
+See the README's [Security](../README.md#security) section and
 [`docs/SECURITY.md`](./SECURITY.md) for the full threat model.
 
 ## Feature gating
 
-There are four categories of features in [`Cargo.toml`](../Cargo.toml):
+There are several categories of features in [`Cargo.toml`](../Cargo.toml):
 
 - `cli` — the optional clap-based CLI (`--help`, `--version`, `--config`).
 - `config` — the optional TOML/CSS configuration. It pulls in `directories`,
-  `serde`, and `toml` (all `optional = true` dependencies already present in
-  the tree through `niri-ipc`).
+  `serde`, and `toml` (all `optional = true`). Only `serde` is already present
+  transitively through the default `niri` backend (`niri-ipc`); `directories`
+  and `toml` are genuinely new.
 - Exactly one of ten color features: `black`, `blue`, `cyan`, `green`,
   `orange`, `pink`, `purple`, `red`, `white`, `yellow`. This set is the
   compiled-in base stylesheet.
@@ -38,9 +39,12 @@ There are four categories of features in [`Cargo.toml`](../Cargo.toml):
   workspace strip code lives in `src/ui/components/workspaces/`, one module
   per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
   model.
+- The feature-gated components: `volume` (`pipewire`) and `wifi`
+  (`neli-wifi`), plus the `doc` feature used only to regenerate the default
+  configuration.
 
-The default is `black` + `cli` + `config` + `niri` + `wifi`
-(`default = ["black", "cli", "config", "niri", "wifi"]`).
+The default is `black` + `cli` + `config` + `niri` + `volume` + `wifi`
+(`default = ["black", "cli", "config", "niri", "volume", "wifi"]`).
 
 **Exactly one color must be enabled.** This is enforced by a `const` assert in
 [`src/lib.rs`](../src/lib.rs):
@@ -60,7 +64,7 @@ into the binary — the other nine are not.
 ### Building with feature combinations
 
 ```sh
-# black + config + cli (the default)
+# the default: black + cli + config + niri + volume + wifi
 cargo build
 
 # purple theme + config + cli
@@ -135,9 +139,11 @@ container via `nix develop`:
 - `ci-check` — `cargo check --locked`.
 - `ci-clippy` — `cargo clippy --locked`.
 - `ci-test` — `cargo nextest run`.
+- `ci-clippy-features` — `cargo clippy` over several `--no-default-features`
+  feature combinations.
 
 These map one-to-one onto the `ci-*` recipes in the
-[`justfile`](../justfile), and the `STEPS` list in `ci/src/main.rs` must stay in
+[`justfile`](../justfile), and the `STEPS` list in `ci/src/push.rs` must stay in
 sync with them. The GitHub workflow `.github/workflows/ci.yml` builds the
 pipeline binary and runs it with Dagger. You can run the whole pipeline locally
 with `just dagger` (needs docker or podman).

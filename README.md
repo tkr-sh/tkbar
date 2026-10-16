@@ -50,7 +50,7 @@ A minimalist, hardened status bar for Wayland.
 
 </div>
 
-`tkbar` is small and opinionated on purpose: every optional piece is feature-gated so it can be compiled out, and what doesn't exist is hardcoded by design. A single TOML file tunes the layout and behaviour, a CSS file can restyle everything, and the rest is baked in. Want to go deeper? Fork it, or open a PR with proper feature gating (See [CONTRIBUTING.md](./docs/CONTRIBUTING.md)) .
+`tkbar` is small and opinionated on purpose: every optional piece is feature-gated so it can be compiled out, and what doesn't exist is hardcoded by design. A single TOML file tunes the layout, behaviour, and security policy, a CSS file can restyle everything, and the rest is baked in. Want to go deeper? Fork it, or open a PR with proper feature gating (See [CONTRIBUTING.md](./docs/CONTRIBUTING.md)) .
 
 ## ✨ Features
 
@@ -76,7 +76,7 @@ The bar aims for a minimal dependency tree: every crate and library is code that
 | gtk4-layer-shell >= 1.0 | C library implementing the layer-shell protocol |
 | glib | comes with GTK4 |
 
-With the default `config` feature, three direct Rust crates are added: `directories`, `serde`, `toml`. Of these, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code. `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features` to drop the `config` crates entirely: no TOML parser is then linked at all.
+On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`) and `async-channel`, the default feature set adds the `clap` crate (`cli`), `directories`/`serde`/`toml` (`config`), `neli-wifi` (`wifi`), `pipewire` (`volume`), and `niri-ipc` (`niri`). Of the `config` crates, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code; `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features` to drop the optional crates entirely: no TOML parser is then linked at all.
 
 ### Run-time
 
@@ -133,7 +133,7 @@ tkbar [OPTIONS]
 | --- | --- |
 | `--help` | Print help information |
 | `--version` | Print version |
-| `--config <PATH>` | Path to configuration file (requires the `config` feature) |
+| `--config <PATH>` | Path to configuration file (requires the `cli` and `config` features) |
 
 
 Example:
