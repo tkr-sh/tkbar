@@ -64,6 +64,13 @@ release version:
     nu ./scripts/release.nu {{version}}
 
 [group: 'ci']
+ci-css:
+    let tmp = (mktemp -d)
+    cp -r ./src/ui/styles $tmp
+    nu ./scripts/css.nu | ignore
+    diff -r ($tmp | path join styles) ./src/ui/styles
+
+[group: 'ci']
 ci-fmt:
     cargo fmt --check
     taplo fmt --check ...(fd -e toml | lines | where { $in != 'docs/config.toml' })
