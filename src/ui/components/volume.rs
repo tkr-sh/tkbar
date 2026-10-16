@@ -192,7 +192,10 @@ fn pipewire_loop(rx: Receiver<Cmd>, vol_update_tx: &async_channel::Sender<VolSta
 
             if let Some((device, route)) = route_target {
                 let bytes = route_pod(&route, new_vol_state);
-                let pod = Pod::from_bytes(&bytes).expect("route pod is valid");
+                let Some(pod) = Pod::from_bytes(&bytes) else {
+                    crate::log::warn("volume", "invalid route pod");
+                    return;
+                };
                 device.set_param(ParamType::Route, 0, pod);
             } else {
                 let bytes = match cmd {
@@ -201,7 +204,10 @@ fn pipewire_loop(rx: Receiver<Cmd>, vol_update_tx: &async_channel::Sender<VolSta
                     },
                     Cmd::ToggleMute => mute_pod(new_vol_state.muted),
                 };
-                let pod = Pod::from_bytes(&bytes).expect("volume/mute props pod is valid");
+                let Some(pod) = Pod::from_bytes(&bytes) else {
+                    crate::log::warn("volume", "invalid volume/mute props pod");
+                    return;
+                };
                 node.set_param(ParamType::Props, 0, pod);
             }
         }
