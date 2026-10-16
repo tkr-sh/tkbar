@@ -196,7 +196,7 @@ impl Brightness {
 
     fn apply(self, cmd: &Cmd) -> u64 {
         match cmd {
-            Cmd::SetAbsolute(absolute) => (*absolute).clamp(0, self.actual_brightness),
+            Cmd::SetAbsolute(absolute) => (*absolute).clamp(0, self.max_brightness),
             Cmd::SetRelative(relative) => {
                 if *relative > 0 {
                     self.max_brightness.min(
