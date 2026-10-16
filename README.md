@@ -165,6 +165,11 @@ audited `glib::setenv` call at startup, allowed with `#[expect(unsafe_code)]`
 dynamic loading, a pinned, reproducible build, and a GTK stack stripped of
 everything the bar does not draw with.
 
+The dependency graph is enforced in CI: `cargo deny check advisories bans
+licenses sources` fails on vulnerable, unsound, yanked, unlicensed or
+non-crates.io crates across the whole feature matrix, and `cargo machete`
+rejects unused dependencies.
+
 See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model, the enforced
 security properties, the measured footprint, and how to report a vulnerability.
 

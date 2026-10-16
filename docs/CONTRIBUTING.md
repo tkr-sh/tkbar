@@ -140,6 +140,8 @@ container via `nix develop`:
 
 - `ci-css` — verify the committed stylesheets match the SCSS sources.
 - `ci-fmt` — `cargo fmt --check` + `taplo fmt --check`.
+- `ci-machete` — `cargo machete` (no unused dependencies).
+- `ci-deny` — `cargo deny --exclude tkbar-ci check advisories bans licenses sources` (supply chain, shipped crate only).
 - `ci-check` — `cargo check --locked`.
 - `ci-clippy` — `cargo clippy --locked`.
 - `ci-test` — `cargo nextest run`.

@@ -114,6 +114,7 @@
                     watchexec
                     cargo-nextest
                     cargo-machete
+                    cargo-deny
                     dart-sass
                     dagger.packages.${system}.dagger
 

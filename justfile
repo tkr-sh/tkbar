@@ -78,6 +78,14 @@ ci-check:
     cargo check --locked --workspace
 
 [group: 'ci']
+ci-deny:
+    cargo deny --exclude tkbar-ci check advisories bans licenses sources
+
+[group: 'ci']
+ci-machete:
+    cargo machete
+
+[group: 'ci']
 ci-clippy-features:
     cargo clippy --locked --no-default-features --features config,hyprland,black,wifi,cli -- -Dwarnings
     cargo clippy --locked --no-default-features --features red -- -Dwarnings

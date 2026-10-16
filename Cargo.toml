@@ -1,7 +1,25 @@
 [package]
+    authors = ["tkr-sh"]
+    categories = ["gui"]
     default-run = "tkbar"
+    description = "A minimalist, hardened status bar for Wayland."
     edition = "2024"
+    exclude = [
+        ".editorconfig",
+        ".github",
+        "ci",
+        "docs",
+        "flake.lock",
+        "flake.nix",
+        "justfile",
+        "resources",
+        "scripts",
+    ]
+    keywords = ["gui", "layer-shell", "security", "status-bar", "wayland"]
+    license = "GPL-3.0-or-later"
     name = "tkbar"
+    readme = "README.md"
+    repository = "https://github.com/tkr-sh/tkbar"
     version = "0.1.0"
 
 [lints]

@@ -84,7 +84,9 @@ These are structural, compile-time or design constraints, not runtime checks:
   who can write your config can change the layout, and nothing more.
 - **Pinned, reproducible supply chain.** `Cargo.lock` and `flake.lock` pin
   every dependency; the Nix build is reproducible. `cargo tree` shows the whole
-  picture.
+  picture. CI audits the full feature matrix with `cargo deny check advisories
+  bans licenses sources` (no vulnerable, unsound, yanked, unlicensed or
+  non-crates.io crate) and `cargo machete` (no unused dependency).
 - **Stable compiler for artifacts.** Release builds use the stable Rust
   toolchain; nightly is confined to the devshell for `rustfmt`/`clippy`, so
   shipped binaries are produced by the well-tested stable compiler, not a

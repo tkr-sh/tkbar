@@ -1,0 +1,39 @@
+# <https://embarkstudios.github.io/cargo-deny/>
+
+[graph]
+    all-features = true
+
+[advisories]
+    ignore = []
+    unmaintained = "all"
+    unsound = "all"
+    version = 2
+    yanked = "deny"
+
+[licenses]
+    version = 2
+    # Only licenses compatible with this GPL-3.0-or-later project.
+    allow = [
+        "Apache-2.0 WITH LLVM-exception",
+        "Apache-2.0",
+        "BSD-3-Clause",
+        "GPL-3.0-or-later",
+        "ISC",
+        "MIT",
+        "MPL-2.0",
+        "Unicode-3.0",
+        "Unlicense",
+    ]
+    confidence-threshold = 0.9
+
+[bans]
+    # Duplicate versions are reviewed manually (warn), wildcard requirements denied.
+    multiple-versions = "warn"
+    wildcards = "deny"
+
+[sources]
+    # Everything must come from crates.io; no git or unknown registries.
+    allow-git = []
+    allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+    unknown-git = "deny"
+    unknown-registry = "deny"
