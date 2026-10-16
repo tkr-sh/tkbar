@@ -65,10 +65,7 @@ release version:
 
 [group: 'ci']
 ci-css:
-    let tmp = (mktemp -d)
-    cp -r ./src/ui/styles $tmp
-    nu ./scripts/css.nu | ignore
-    diff -r ($tmp | path join styles) ./src/ui/styles
+    nu ./scripts/ci-css.nu
 
 [group: 'ci']
 ci-fmt:
