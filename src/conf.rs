@@ -10,8 +10,8 @@
 use crate::ui::{BarPosition, Component};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
-#[cfg_attr(feature = "config", serde(deny_unknown_fields))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
+#[cfg_attr(feature = "config", serde(deny_unknown_fields))]
 pub struct Config {
     #[cfg_attr(feature = "config", serde(default))]
     pub style: Style,
@@ -30,6 +30,7 @@ pub struct Config {
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
+#[cfg_attr(feature = "config", serde(default, deny_unknown_fields))]
 pub struct Behaviour {
     // #[cfg_attr(feature = "config", serde(default = "default_components"))]
     pub components: Vec<Component>,
@@ -54,6 +55,7 @@ pub struct Behaviour {
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
+#[cfg_attr(feature = "config", serde(default, deny_unknown_fields))]
 pub struct Style {
     #[cfg_attr(feature = "config", serde(default))]
     pub position: BarPosition,
@@ -63,7 +65,7 @@ pub struct Style {
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
-#[cfg_attr(feature = "config", serde(deny_unknown_fields))]
+#[cfg_attr(feature = "config", serde(default, deny_unknown_fields))]
 pub struct Security {
     /// Whether to display custom workspace names (labels) instead of numeric IDs.
     ///
@@ -287,13 +289,56 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unknown_component() {
-        assert!(toml::from_str::<Config>(r#"components = ["coffee"]"#).is_err());
+    fn partial_behaviour_uses_field_defaults() {
+        let config: Config = toml::from_str("[behaviour]\ncomponents = [\"clock\"]\n").unwrap();
+        assert_eq!(config.behaviour.components.len(), 1);
+        assert!(config.behaviour.should_show_empty_workspace);
+        assert_eq!(config.behaviour.workspace_count, default_10());
+        assert_eq!(config.behaviour.on_scroll_volume_step, default_3());
     }
 
     #[test]
-    fn rejects_unknown_position() {
-        assert!(toml::from_str::<Config>(r#"position = "diagonal""#).is_err());
+    fn behaviour_without_components_uses_default_components() {
+        let config: Config = toml::from_str("[behaviour]\nworkspace_count = 5\n").unwrap();
+        assert_eq!(config.behaviour.workspace_count, 5);
+        assert_eq!(
+            config.behaviour.components.len(),
+            default_components().len()
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_field_in_style() {
+        assert!(toml::from_str::<Config>("[style]\nbar_size = 40\n").is_err());
+    }
+
+    #[test]
+    fn rejects_unknown_field_in_behaviour() {
+        let toml = "
+            [behaviour]
+                components = []
+                should_show_empty_workspace = true
+                on_scroll_brightness_step = 3
+                on_scroll_volume_step = 3
+                workspace_count = 10
+                workspace_cout = 4
+        ";
+        assert!(toml::from_str::<Config>(toml).is_err());
+    }
+
+    #[test]
+    fn components_and_position_are_validated_in_their_section() {
+        let err = toml::from_str::<Config>("[behaviour]\ncomponents = [\"coffee\"]\n")
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(err.contains("unknown variant"), "{err}");
+
+        let err = toml::from_str::<Config>("[style]\nposition = \"diagonal\"\n")
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(err.contains("unknown variant"), "{err}");
     }
 
     #[test]
