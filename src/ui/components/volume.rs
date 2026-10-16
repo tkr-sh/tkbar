@@ -39,7 +39,6 @@ use {
         collections::HashMap,
         io::Cursor,
         rc::{Rc, Weak},
-        sync::{Arc, Mutex},
     },
 };
 
@@ -72,12 +71,11 @@ pub(crate) fn volume() -> GtkBox {
     container.append(&icon);
     container.append(&value);
 
-    let vol_state = Arc::new(Mutex::new(Option::<VolState>::None));
     let (tx, rx) = pipewire::channel::channel::<Cmd>();
     let (vol_update_tx, vol_update_rx) = async_channel::unbounded::<VolState>();
 
 
-    launch_pipewire_thread(vol_state, rx, vol_update_tx);
+    launch_pipewire_thread(rx, vol_update_tx);
 
     glib::spawn_future_local(glib::clone!(
         #[weak]
@@ -125,19 +123,11 @@ pub(crate) fn volume() -> GtkBox {
     container
 }
 
-fn launch_pipewire_thread(
-    vol_state: Arc<Mutex<Option<VolState>>>,
-    rx: Receiver<Cmd>,
-    vol_update_tx: async_channel::Sender<VolState>,
-) {
-    std::thread::spawn(move || pipewire_loop(vol_state, rx, &vol_update_tx));
+fn launch_pipewire_thread(rx: Receiver<Cmd>, vol_update_tx: async_channel::Sender<VolState>) {
+    std::thread::spawn(move || pipewire_loop(rx, &vol_update_tx));
 }
 
-fn pipewire_loop(
-    vol_state: Arc<Mutex<Option<VolState>>>,
-    rx: Receiver<Cmd>,
-    vol_update_tx: &async_channel::Sender<VolState>,
-) {
+fn pipewire_loop(rx: Receiver<Cmd>, vol_update_tx: &async_channel::Sender<VolState>) {
     pipewire::init();
 
     let Ok(main_loop) = MainLoopRc::new(None) else {
@@ -165,24 +155,17 @@ fn pipewire_loop(
 
     let _attached = rx.attach(main_loop.loop_(), {
         let pw_state = Rc::clone(&pw_state);
-        let vol_state = Arc::clone(&vol_state);
         let vol_update_tx = vol_update_tx.clone();
         move |cmd| {
-            let pw = pw_state.borrow();
+            let (route_target, node, new_vol_state) = {
+                let mut pw = pw_state.borrow_mut();
 
-            let Some(name) = pw.default_sink_name.as_ref() else {
-                return;
-            };
+                let Some(name) = pw.default_sink_name.clone() else {
+                    return;
+                };
 
-            let Some(entry) = pw.sinks.get(name) else {
-                return;
-            };
-
-
-            let new_vol_state = {
-                let mut vol = vol_state.lock().expect("mutex poisoned");
                 let step = u32::from(CONFIG.behaviour.on_scroll_volume_step);
-                let Some(state) = vol.as_mut() else {
+                let Some(state) = pw.vol.as_mut() else {
                     return;
                 };
 
@@ -191,35 +174,35 @@ fn pipewire_loop(
                     Cmd::DecVolume => state.percent = state.percent.saturating_sub(step),
                     Cmd::ToggleMute => state.muted = !state.muted,
                 }
+                let new_vol_state = *state;
 
-                *state
+                let Some(sink) = pw.sinks.get(&name) else {
+                    return;
+                };
+
+                let route_target = sink.route.and_then(|route| {
+                    let device = pw.devices.get(&sink.device_id?)?;
+                    Some((Rc::clone(&device.device), route))
+                });
+
+                (route_target, Rc::clone(&sink.node), new_vol_state)
             };
 
             let _ = vol_update_tx.try_send(new_vol_state);
-
-            let route_target = entry.route.and_then(|route| {
-                let device = pw.devices.get(&entry.device_id?)?;
-                Some((Rc::clone(&device.device), route))
-            });
 
             if let Some((device, route)) = route_target {
                 let bytes = route_pod(&route, new_vol_state);
                 let pod = Pod::from_bytes(&bytes).expect("route pod is valid");
                 device.set_param(ParamType::Route, 0, pod);
             } else {
-                match cmd {
+                let bytes = match cmd {
                     Cmd::IncVolume | Cmd::DecVolume => {
-                        let bytes = volume_pod(new_vol_state.percent, new_vol_state.nb_channels);
-                        let pod =
-                            Pod::from_bytes(&bytes).expect("volume_pod output is a valid pod");
-                        entry.node.set_param(ParamType::Props, 0, pod);
+                        volume_pod(new_vol_state.percent, new_vol_state.nb_channels)
                     },
-                    Cmd::ToggleMute => {
-                        let bytes = mute_pod(new_vol_state.muted);
-                        let pod = Pod::from_bytes(&bytes).expect("mute_pod output is a valid pod");
-                        entry.node.set_param(ParamType::Props, 0, pod);
-                    },
-                }
+                    Cmd::ToggleMute => mute_pod(new_vol_state.muted),
+                };
+                let pod = Pod::from_bytes(&bytes).expect("volume/mute props pod is valid");
+                node.set_param(ParamType::Props, 0, pod);
             }
         }
     });
@@ -285,7 +268,6 @@ fn pipewire_loop(
                                 }
                             })
                             .param({
-                                let vol_state_weak = Arc::downgrade(&vol_state);
                                 let vol_update_tx = vol_update_tx.clone();
                                 let pw_state_weak = Weak::clone(&pw_state_weak);
                                 let name = name.clone();
@@ -296,8 +278,8 @@ fn pipewire_loop(
                                         }
 
                                         // Only the default sink drives the widget
-                                        let pw = pw_state_weak.upgrade()?;
-                                        if pw.borrow().default_sink_name.as_deref() !=
+                                        let state = pw_state_weak.upgrade()?;
+                                        if state.borrow().default_sink_name.as_deref() !=
                                             Some(name.as_str())
                                         {
                                             return None;
@@ -305,21 +287,17 @@ fn pipewire_loop(
 
                                         let update = VolUpdate::parse(param?)?;
 
-                                        if let Some(state) = vol_state_weak.upgrade() {
-                                            let snapshot = {
-                                                let mut guard =
-                                                    state.lock().expect("mutex poisoned");
-                                                let current =
-                                                    guard.get_or_insert_with(VolState::default);
+                                        let snapshot = {
+                                            let mut pw = state.borrow_mut();
+                                            let current =
+                                                pw.vol.get_or_insert_with(VolState::default);
 
-                                                current.apply_update(update);
+                                            current.apply_update(update);
 
-                                                *current
-                                            };
+                                            *current
+                                        };
 
-
-                                            let _ = vol_update_tx.try_send(snapshot);
-                                        }
+                                        let _ = vol_update_tx.try_send(snapshot);
 
                                         Some(())
                                     })();
@@ -341,7 +319,7 @@ fn pipewire_loop(
                                 name,
                                 SinkEntry {
                                     id: obj.id,
-                                    node,
+                                    node: Rc::new(node),
                                     device_id,
                                     route_device,
                                     route: None,
@@ -372,7 +350,6 @@ fn pipewire_loop(
                             .add_listener_local()
                             .param({
                                 let pw_state_weak = Weak::clone(&pw_state_weak);
-                                let vol_state_weak = Arc::downgrade(&vol_state);
                                 let vol_update_tx = vol_update_tx.clone();
                                 move |_seq, id, _index, _next, param| {
                                     let _ = (|| {
@@ -383,11 +360,10 @@ fn pipewire_loop(
                                         let event = RouteEvent::parse(param?)?;
                                         let state = pw_state_weak.upgrade()?;
 
-                                        let mut update = None;
-
-                                        {
+                                        let snapshot = {
                                             let mut pw = state.borrow_mut();
                                             let default = pw.default_sink_name.clone();
+                                            let mut update = None;
                                             for (name, sink) in &mut pw.sinks {
                                                 if sink.device_id != Some(device_id) ||
                                                     sink.route_device != Some(event.device)
@@ -403,19 +379,16 @@ fn pipewire_loop(
                                                     update = Some(event.update);
                                                 }
                                             }
-                                        }
 
-                                        if let (Some(update), Some(vol_state)) =
-                                            (update, vol_state_weak.upgrade())
-                                        {
-                                            let snapshot = {
-                                                let mut guard =
-                                                    vol_state.lock().expect("mutex poisoned");
+                                            update.map(|update| {
                                                 let current =
-                                                    guard.get_or_insert_with(VolState::default);
+                                                    pw.vol.get_or_insert_with(VolState::default);
                                                 current.apply_update(update);
                                                 *current
-                                            };
+                                            })
+                                        };
+
+                                        if let Some(snapshot) = snapshot {
                                             let _ = vol_update_tx.try_send(snapshot);
                                         }
 
@@ -544,13 +517,14 @@ struct PwState {
     default_sink_name: Option<String>,
     sinks: HashMap<String, SinkEntry>,
     devices: HashMap<u32, DeviceEntry>,
+    vol: Option<VolState>,
     // keeps alive
     _metadata: Option<(Metadata, MetadataListener)>,
 }
 
 struct SinkEntry {
     id: u32,
-    node: Node,
+    node: Rc<Node>,
     device_id: Option<u32>,
     route_device: Option<i32>,
     route: Option<RouteRef>,
