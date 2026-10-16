@@ -8,6 +8,19 @@ mod conf;
 mod log;
 mod ui;
 
+/// Initializes GTK, aborting with a diagnostic if it fails.
+///
+/// `gtk::init` is the first point where a missing display server
+/// (`WAYLAND_DISPLAY`/`DISPLAY`) surfaces. Ignoring its error would only defer
+/// the failure to `load_css`'s `Display::default()` `expect`, with a far less
+/// actionable message.
+pub fn init_gtk() {
+    if let Err(err) = gtk::init() {
+        crate::log::error("gtk", &format!("cannot initialize GTK: {err}"));
+        std::process::exit(1);
+    }
+}
+
 pub fn load_css() {
     let display = gtk::gdk::Display::default().expect("Could not get default display");
 

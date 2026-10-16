@@ -1,7 +1,7 @@
 use {
     gtk::glib,
     gtk4 as gtk,
-    tkbar::{build_window, load_css},
+    tkbar::{build_window, init_gtk, load_css},
 };
 
 #[cfg(feature = "cli")]
@@ -35,7 +35,7 @@ fn main() {
 
     disable_image_loaders();
 
-    let _ = gtk::init();
+    init_gtk();
 
     load_css();
     build_window();
