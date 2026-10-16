@@ -287,30 +287,42 @@ fn pipewire_loop(
                             .param({
                                 let vol_state_weak = Arc::downgrade(&vol_state);
                                 let vol_update_tx = vol_update_tx.clone();
+                                let pw_state_weak = Weak::clone(&pw_state_weak);
+                                let name = name.clone();
                                 move |_seq, id, _index, _next, param| {
-                                    if id != ParamType::Props {
-                                        return;
-                                    }
+                                    let _ = (|| {
+                                        if id != ParamType::Props {
+                                            return None;
+                                        }
 
-                                    let Some(param) = param else { return };
-                                    let Some(update) = VolUpdate::parse(param) else {
-                                        return;
-                                    };
-
-                                    if let Some(state) = vol_state_weak.upgrade() {
-                                        let snapshot = {
-                                            let mut guard = state.lock().expect("mutex poisoned");
-                                            let current =
-                                                guard.get_or_insert_with(VolState::default);
-
-                                            current.apply_update(update);
-
-                                            *current
+                                        // Only the default sink drives the widget
+                                        let pw = pw_state_weak.upgrade()?;
+                                        if pw.borrow().default_sink_name.as_deref() !=
+                                            Some(name.as_str())
+                                        {
+                                            return None;
                                         };
 
+                                        let update = VolUpdate::parse(param?)?;
 
-                                        let _ = vol_update_tx.try_send(snapshot);
-                                    }
+                                        if let Some(state) = vol_state_weak.upgrade() {
+                                            let snapshot = {
+                                                let mut guard =
+                                                    state.lock().expect("mutex poisoned");
+                                                let current =
+                                                    guard.get_or_insert_with(VolState::default);
+
+                                                current.apply_update(update);
+
+                                                *current
+                                            };
+
+
+                                            let _ = vol_update_tx.try_send(snapshot);
+                                        }
+
+                                        Some(())
+                                    })();
                                 }
                             })
                             .register();
@@ -363,51 +375,52 @@ fn pipewire_loop(
                                 let vol_state_weak = Arc::downgrade(&vol_state);
                                 let vol_update_tx = vol_update_tx.clone();
                                 move |_seq, id, _index, _next, param| {
-                                    if id != ParamType::Route {
-                                        return;
-                                    }
-                                    let Some(param) = param else { return };
-                                    let Some(event) = RouteEvent::parse(param) else {
-                                        return;
-                                    };
-                                    let Some(state) = pw_state_weak.upgrade() else {
-                                        return;
-                                    };
+                                    let _ = (|| {
+                                        if id != ParamType::Route {
+                                            return None;
+                                        }
 
-                                    let mut update = None;
-                                    {
-                                        let mut pw = state.borrow_mut();
-                                        let default = pw.default_sink_name.clone();
-                                        for (name, sink) in &mut pw.sinks {
-                                            if sink.device_id != Some(device_id) ||
-                                                sink.route_device != Some(event.device)
-                                            {
-                                                continue;
-                                            }
-                                            sink.route = Some(RouteRef {
-                                                index: event.index,
-                                                device: event.device,
-                                                nb_channels: event.channels,
-                                            });
-                                            if Some(name) == default.as_ref() {
-                                                update = Some(event.update);
+                                        let event = RouteEvent::parse(param?)?;
+                                        let state = pw_state_weak.upgrade()?;
+
+                                        let mut update = None;
+
+                                        {
+                                            let mut pw = state.borrow_mut();
+                                            let default = pw.default_sink_name.clone();
+                                            for (name, sink) in &mut pw.sinks {
+                                                if sink.device_id != Some(device_id) ||
+                                                    sink.route_device != Some(event.device)
+                                                {
+                                                    continue;
+                                                }
+                                                sink.route = Some(RouteRef {
+                                                    index: event.index,
+                                                    device: event.device,
+                                                    nb_channels: event.channels,
+                                                });
+                                                if Some(name) == default.as_ref() {
+                                                    update = Some(event.update);
+                                                }
                                             }
                                         }
-                                    }
 
-                                    if let (Some(update), Some(vol_state)) =
-                                        (update, vol_state_weak.upgrade())
-                                    {
-                                        let snapshot = {
-                                            let mut guard =
-                                                vol_state.lock().expect("mutex poisoned");
-                                            let current =
-                                                guard.get_or_insert_with(VolState::default);
-                                            current.apply_update(update);
-                                            *current
-                                        };
-                                        let _ = vol_update_tx.try_send(snapshot);
-                                    }
+                                        if let (Some(update), Some(vol_state)) =
+                                            (update, vol_state_weak.upgrade())
+                                        {
+                                            let snapshot = {
+                                                let mut guard =
+                                                    vol_state.lock().expect("mutex poisoned");
+                                                let current =
+                                                    guard.get_or_insert_with(VolState::default);
+                                                current.apply_update(update);
+                                                *current
+                                            };
+                                            let _ = vol_update_tx.try_send(snapshot);
+                                        }
+
+                                        Some(())
+                                    })();
                                 }
                             })
                             .register();
