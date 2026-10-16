@@ -165,7 +165,7 @@
                 )
                 else rustPlatform.buildRustPackage {
                     pname = "tkbar";
-                    version = "0.1.0";
+                    version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.version;
                     src = ./.;
                     cargoLock.lockFile = ./Cargo.lock;
 
