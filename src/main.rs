@@ -33,7 +33,7 @@ fn main() {
         }
     }
 
-    disable_image_loaders();
+    harden_gtk_env();
 
     init_gtk();
 
@@ -45,6 +45,21 @@ fn main() {
     main_loop.run();
 }
 
-fn disable_image_loaders() {
-    let _ = glib::setenv("GDK_PIXBUF_MODULE_FILE", "/dev/null", true);
+/// <https://docs.gtk.org/gtk4/running.html>
+fn harden_gtk_env() {
+    let set = |k, v| {
+        let _ = glib::setenv(k, v, true);
+    };
+
+    // no image loaders
+    set("GDK_PIXBUF_MODULE_FILE", "/dev/null");
+    // no AT-SPI D-Bus export
+    set("GTK_A11Y", "none");
+    // no GL/Vulkan, no driver dlopen
+    set("GSK_RENDERER", "cairo");
+    set("GDK_DISABLE", "gl,vulkan,dmabuf");
+    // never fall back to X11
+    set("GDK_BACKEND", "wayland");
+    // no xdg-desktop-portal round-trips
+    set("GDK_DEBUG", "no-portals");
 }

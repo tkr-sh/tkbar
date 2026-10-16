@@ -62,9 +62,9 @@ These are structural, compile-time or design constraints, not runtime checks:
 - **No network code.** No HTTP, no DNS, no listening sockets.
 - **No dynamic loading.** No plugins, no `dlopen`, no scripting engine, no
   webview. GTK's image-loading machinery is neutered: at startup the bar points
-  `GDK_PIXBUF_MODULE_FILE` at an empty loader cache, so gdk-pixbuf loads no
-  image parser modules (SVG, TIFF, ...), and the Nix package wires the same
-  empty cache into the wrapper. The base CSS is compiled into the binary
+  `GDK_PIXBUF_MODULE_FILE` at `/dev/null`, so gdk-pixbuf loads no image parser
+  modules (SVG, TIFF, ...), and the Nix wrapper sets the same value as defense
+  in depth. The base CSS is compiled into the binary
   (`include_str!`); the only runtime-loaded content is the optional
   `~/.config/tkbar/style.css` (behind the `config` feature), which is plain
   CSS data and cannot execute code.
@@ -88,14 +88,44 @@ These are structural, compile-time or design constraints, not runtime checks:
   permission checks; the flake's NixOS module installs a udev rule granting
   write access to a dedicated group (`tkbar-backlight` by default, or `video`).
 
+## Measured footprint
+
+"Hardened" is a property you can check, not a slogan. With the bar running:
+
+```sh
+pid=$(pidof tkbar)
+ls -l /proc/$pid/fd | grep -c socket                 # open sockets
+grep -c '\.so' /proc/$pid/maps                        # shared-object mappings
+grep -E 'dri|vulkan|mesa|atspi' /proc/$pid/maps       # GPU / a11y code in the process
+```
+
+On a default-feature build (Intel GPU, niri, GTK 4.x):
+
+- **4** open sockets — Wayland, compositor IPC, PipeWire, netlink.
+- **0** D-Bus connections.
+- **581** shared-object mappings.
+- no GPU driver loaded (`*_dri.so`, `libEGL`, `libgbm`), and no
+  `/dev/dri/renderD*` opened.
+- nothing written under `$HOME` at runtime.
+
+Every socket that remains maps to something visible on screen. The two
+libraries you will still see are `libvulkan.so.1` and `libgio-2.0.so`: both are
+link-time dependencies of `libgtk-4` itself, mapped by `ld.so` and never
+initialized (no Vulkan ICD is loaded, no D-Bus connection is made).
+
+Two things GTK still reads from your home directory, because GTK does so
+unconditionally and they are in the same trust class as the bar's own config:
+`~/.config/gtk-4.0/gtk.css` and `~/.config/gtk-4.0/settings.ini`. Both are
+plain data.
+
 ## Known attack surface
 
-The README details this; the short version:
+In short:
 
 - The **GTK stack** (GTK4, Pango, FreeType, Cairo) is by far the largest attack
   surface. Mitigation: fonts come from already-trusted system fontconfig, and
   the bar loads no images or remote content — gdk-pixbuf's image loader modules
-  are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → empty cache), so no image
+  are disabled at startup (`GDK_PIXBUF_MODULE_FILE` → `/dev/null`), so no image
   parser code runs. Keep your system GTK updated.
 - The bar **spawns no external processes**, so there is no `PATH` hijack
   surface. Volume uses an in-process PipeWire client, Wi-Fi talks to the kernel
@@ -105,5 +135,4 @@ The README details this; the short version:
 - A **compromised compositor** can overlay, spoof, or intercept anything; this
   is true for every Wayland client and unfixable at this layer.
 
-See the README's [Security](../README.md#security) section for the complete
-detail.
+See the README's [Security](../README.md#security) section for a short summary.

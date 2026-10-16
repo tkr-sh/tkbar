@@ -177,18 +177,22 @@
                         ++ pkgs.lib.optional withConfig "config"
                         ++ components;
 
-                    # The bar renders icons from font glyphs and never loads
-                    # images. Point gdk-pixbuf at an empty loader cache so
-                    # wrapGAppsHook4 does not wire in image loader modules
-                    # (librsvg's SVG/XML parser otherwise ends up in the
-                    # runtime closure and dlopened by GTK).
-                    postInstall = ''
-                        mkdir -p $out/lib/gdk-pixbuf-2.0/2.10.0
-                        printf '%s\n' \
-                            '# GdkPixbuf Image Loader Modules file' \
-                            '# tkbar loads no images: keep every loader module unregistered.' \
-                            > $out/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
-                        export GDK_PIXBUF_MODULE_FILE=$out/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache
+                    # Mirror `harden_gtk_env` in src/main.rs at the wrapper
+                    # level as well (defense in depth): even if the in-binary
+                    # calls were bypassed, the wrapper still disables image
+                    # loaders, AT-SPI, GL/Vulkan and the X11 fallback.
+                    # Pointing gdk-pixbuf at /dev/null keeps GTK from
+                    # dlopening image loader modules (e.g. librsvg's SVG/XML
+                    # parser) through gdk-pixbuf's default loader cache.
+                    preFixup = ''
+                        gappsWrapperArgs+=(
+                            "--set" "GDK_PIXBUF_MODULE_FILE" "/dev/null"
+                            "--set" "GTK_A11Y" "none"
+                            "--set" "GSK_RENDERER" "cairo"
+                            "--set" "GDK_DISABLE" "gl,vulkan,dmabuf"
+                            "--set" "GDK_BACKEND" "wayland"
+                            "--set" "GDK_DEBUG" "no-portals"
+                        )
                     '';
 
                     nativeBuildInputs = with pkgs; [ pkg-config wrapGAppsHook4 ]         ++ pkgs.lib.optional withVolume rustPlatform.bindgenHook;

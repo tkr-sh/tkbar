@@ -58,8 +58,8 @@ A minimalist, hardened status bar for Wayland.
 - 🧩 **Components** — clickable workspaces, battery, Wi-Fi (SSID & signal), brightness, volume, clock, spacer and a logo glyph.
 - 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
-- ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature, build with `--no-default-features` and no parser is linked at all.
-- 🔒 **Hardened** — no `unsafe`, no network code, no dynamic loading, no panics on external data, and a minimal, auditable dependency tree (see [Security](#-security)).
+- ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature; build with `--no-default-features --features <color>` and no parser is linked at all.
+- 🔒 **Hardened** — no `unsafe`, no network code, no dynamic loading, no panics on external data, a minimal, auditable dependency tree, and a GTK stack trimmed at startup: no GPU driver, no D-Bus, no image loaders. Measured, not claimed (see [Security](#-security)).
 - 💻 **CLI** — optional `clap` feature gate provides `--help`, `--version`, and `--config <path>` flags for overriding the configuration file path at runtime.
 - 🚧 **Coming soon** — optional `logging` (the `log` crate) feature gate, for people who want more batteries included.
 
@@ -76,13 +76,13 @@ The bar aims for a minimal dependency tree: every crate and library is code that
 | gtk4-layer-shell >= 1.0 | C library implementing the layer-shell protocol |
 | glib | comes with GTK4 |
 
-On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`) and `async-channel`, the default feature set adds the `clap` crate (`cli`), `directories`/`serde`/`toml` (`config`), `neli-wifi` (`wifi`), `pipewire` (`volume`), and `niri-ipc` (`niri`). Of the `config` crates, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code; `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features` to drop the optional crates entirely: no TOML parser is then linked at all.
+On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`) and `async-channel`, the default feature set adds the `clap` crate (`cli`), `directories`/`serde`/`toml` (`config`), `neli-wifi` (`wifi`), `pipewire` (`volume`), and `niri-ipc` (`niri`). Of the `config` crates, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code; `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features --features <color>` (exactly one color feature is required) to drop the optional crates entirely: no TOML parser is then linked at all.
 
 ### Run-time
 
 | Dependency | How it is used | Trust level |
 | --- | --- | --- |
-| GTK4 / Pango / Cairo / FreeType | linked, renders everything | large audited C codebase, keep it updated |
+| GTK4 / Pango / Cairo / FreeType | linked, renders everything in software (cairo renderer) | large audited C codebase, keep it updated |
 | gtk4-layer-shell | linked, positions the window | small C library |
 | a Wayland compositor ([niri](https://github.com/YaLTeR/niri), [Hyprland](https://github.com/hyprwm/Hyprland), or [sway](https://github.com/swaywm/sway)) | Wayland protocol | fully trusted, see [SECURITY.md](docs/SECURITY.md) |
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
@@ -90,7 +90,17 @@ On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`) and `asyn
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
 | sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#-nixos-module)) | kernel-provided |
 
-The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
+What is deliberately **not** in the process, even though a default GTK4 application would have it:
+
+| Subsystem | Why it is off | How |
+| --- | --- | --- |
+| Mesa / EGL / GL / Vulkan drivers | a gtk4 bar has no use for a GPU, and GPU drivers are `dlopen`-ed at runtime | `GSK_RENDERER=cairo`, `GDK_DISABLE=gl,vulkan,dmabuf` |
+| D-Bus: AT-SPI accessibility bus | would export the whole widget tree to every process on the session bus | `GTK_A11Y=none` |
+| D-Bus: `xdg-desktop-portal` | settings/theme lookups the bar does not need | `GDK_DEBUG=no-portals` |
+| gdk-pixbuf image loaders (PNG, SVG, TIFF, ...) | the bar draws text only; image parsers are a classic attack surface | `GDK_PIXBUF_MODULE_FILE` → empty cache |
+| X11 fallback | X11 has no client isolation, and layer-shell needs Wayland anyway | `GDK_BACKEND=wayland` |
+
+These are set by the binary itself before GTK initializes (`harden_gtk_env` in `src/main.rs`), and the Nix wrapper sets the same values again as defense in depth. The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
 
 ## ❄️ NixOS module
 
@@ -148,13 +158,14 @@ path for that invocation only.
 ## 🔒 Security
 
 A status bar runs unsandboxed with your full user privileges, so attack surface
-is taken seriously: minimal dependencies, no `unsafe`, no panics on external
-data, no network code, no dynamic loading, and a pinned, reproducible build.
+is taken seriously: minimal dependencies, no `unsafe` (enforced by
+`#![forbid(unsafe_code)]`), no panics on external data, no network code, no
+dynamic loading, a pinned, reproducible build, and a GTK stack stripped of
+everything the bar does not draw with.
 
 See [docs/SECURITY.md](docs/SECURITY.md) for the full threat model, the enforced
-security properties, and how to report a vulnerability.
+security properties, the measured footprint, and how to report a vulnerability.
 
 ## 🌱 Origin
 
 I was unsatisfied with the state of Wayland bars and shells (bloat, huge attack surface, not enough config options, protocols left unhandled), so I wrote a minimal thing that worked for me. It has since grown into a bar meant to work for anyone: multiple compositor backends, themes, Nix packaging, and a documented security model, without giving up on minimalism.
-
