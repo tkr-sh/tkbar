@@ -84,6 +84,7 @@
 
     [workspace.lints.rust]
         unsafe_code = "forbid"
+        unreachable_pub = "warn"
 
     # <https://rust-lang.github.io/rust-clippy/master>
     [workspace.lints.clippy]

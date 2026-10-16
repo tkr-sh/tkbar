@@ -9,18 +9,18 @@ mod wifi;
 mod workspaces;
 
 #[cfg(feature = "volume")]
-pub use volume::volume;
+pub(crate) use volume::volume;
 #[cfg(feature = "wifi")]
-pub use wifi::wifi;
+pub(crate) use wifi::wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
-pub use workspaces::workspaces;
+pub(crate) use workspaces::workspaces;
 use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, prelude::*},
     gtk4 as gtk,
     std::{thread, time::Duration},
 };
-pub use {battery::battery, brightness::brightness, clock::clock};
+pub(crate) use {battery::battery, brightness::brightness, clock::clock};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
@@ -89,7 +89,7 @@ where
     (tx, rx)
 }
 
-pub fn spacer() -> GtkBox {
+pub(crate) fn spacer() -> GtkBox {
     let spacer = GtkBox::new(CONFIG.style.position.orientation(), 0);
     spacer.set_vexpand(true);
     spacer.set_hexpand(true);

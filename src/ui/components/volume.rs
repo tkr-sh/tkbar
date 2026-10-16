@@ -57,7 +57,7 @@ struct VolUpdate {
     nb_channels: Option<usize>,
 }
 
-pub fn volume() -> GtkBox {
+pub(crate) fn volume() -> GtkBox {
     let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("volume");
 

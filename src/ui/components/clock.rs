@@ -5,7 +5,7 @@ use {
     std::fmt::Write as _,
 };
 
-pub fn clock() -> Label {
+pub(crate) fn clock() -> Label {
     let clock = Label::new(None);
     clock.add_css_class("clock");
     let mut buf = String::with_capacity(8);

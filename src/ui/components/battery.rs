@@ -42,7 +42,7 @@ static IS_CHARGING: AtomicBool = AtomicBool::new(false);
 static PERCENT: AtomicU8 = AtomicU8::new(100);
 const CRITICAL_PERCENT: u8 = 15;
 
-pub fn battery() -> GtkBox {
+pub(crate) fn battery() -> GtkBox {
     let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("battery");
 

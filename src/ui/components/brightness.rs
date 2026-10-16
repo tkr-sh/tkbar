@@ -21,7 +21,7 @@ enum BrightnessState {
     Present(u8),
 }
 
-pub fn brightness() -> GtkBox {
+pub(crate) fn brightness() -> GtkBox {
     let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
     container.add_css_class("brightness");
 

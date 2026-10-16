@@ -81,7 +81,7 @@ pub fn build_window() {
     window.present();
 }
 
-pub fn build_inner_window(bar: &GtkBox) {
+pub(crate) fn build_inner_window(bar: &GtkBox) {
     for component in &crate::conf::CONFIG.behaviour.components {
         component.add_to_bar(bar);
     }

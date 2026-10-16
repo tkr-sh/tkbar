@@ -117,7 +117,7 @@ impl Config {
     }
 }
 
-pub static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(load);
+pub(crate) static CONFIG: std::sync::LazyLock<Config> = std::sync::LazyLock::new(load);
 
 #[cfg(feature = "config")]
 fn load() -> Config {
