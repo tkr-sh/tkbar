@@ -283,3 +283,69 @@ fn read_online(device: &Path) -> Option<bool> {
 
     Some(bool::try_from(is_online_as_u8).unwrap_or(true))
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const fn battery(now: u64, full: u64) -> BatteryData {
+        BatteryData {
+            energy_now: now,
+            energy_full: full,
+        }
+    }
+
+    fn tmpdir(tag: &str) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!("tkbar-battery-{}-{tag}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn merging_batteries_yields_a_weighted_average() {
+        assert_eq!(battery(25, 100).merge(battery(75, 100)).percent(), 50);
+
+        // A nearly empty huge battery dominates a full tiny one.
+        assert_eq!(battery(10, 10).merge(battery(0, 90)).percent(), 10);
+    }
+
+    #[test]
+    fn read_battery_state_prefers_energy_over_charge_over_capacity() {
+        let dir = tmpdir("fallback");
+
+        fs::write(dir.join("capacity"), "42\n").unwrap();
+        assert_eq!(read_battery_state(&dir), Some(battery(42, 100)));
+
+        fs::write(dir.join("charge_now"), "30").unwrap();
+        fs::write(dir.join("charge_full"), "60").unwrap();
+        assert_eq!(read_battery_state(&dir), Some(battery(30, 60)));
+
+        fs::write(dir.join("energy_now"), "5").unwrap();
+        fs::write(dir.join("energy_full"), "80").unwrap();
+        assert_eq!(read_battery_state(&dir), Some(battery(5, 80)));
+
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn read_battery_state_is_none_without_any_source() {
+        let dir = tmpdir("empty");
+        assert_eq!(read_battery_state(&dir), None);
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn read_online_parses_the_flag() {
+        let dir = tmpdir("online");
+        fs::write(dir.join("online"), "0\n").unwrap();
+        assert_eq!(read_online(&dir), Some(false));
+        fs::write(dir.join("online"), "1").unwrap();
+        assert_eq!(read_online(&dir), Some(true));
+        fs::write(dir.join("online"), "garbage").unwrap();
+        assert_eq!(read_online(&dir), None);
+        fs::remove_dir_all(dir).unwrap();
+    }
+}

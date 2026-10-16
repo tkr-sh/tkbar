@@ -784,3 +784,43 @@ fn route_pod(route: &RouteRef, state: VolState) -> Vec<u8> {
 
     cursor.into_inner()
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sink_name_extracts_the_name() {
+        assert_eq!(
+            parse_sink_name(r#"{"name":"alsa_output.pci-0000_00_1f.3.analog-stereo"}"#),
+            Some("alsa_output.pci-0000_00_1f.3.analog-stereo")
+        );
+    }
+
+    #[test]
+    fn parse_sink_name_rejects_malformed_payloads() {
+        assert_eq!(parse_sink_name(""), None);
+        assert_eq!(parse_sink_name("null"), None);
+        assert_eq!(parse_sink_name(r#"{"name":null}"#), None);
+        assert_eq!(parse_sink_name(r#"{"other":"x"}"#), None);
+    }
+
+    #[test]
+    fn cubic_percent_roundtrips() {
+        for percent in [0u16, 25, 50, 100, 255] {
+            let roundtrip = cubic_to_percent(percent_to_cubic(u32::from(percent)));
+            assert!(
+                (roundtrip - f32::from(percent)).abs() <= 1.0,
+                "{percent} -> {roundtrip}"
+            );
+        }
+    }
+
+    #[test]
+    fn percent_to_cubic_clamps_out_of_range() {
+        assert_eq!(percent_to_cubic(0), 0.0);
+        assert_eq!(percent_to_cubic(1_000), percent_to_cubic(255));
+    }
+}

@@ -101,3 +101,24 @@ fn percent(current: u64, max: u64) -> u8 {
 
     u8::try_from(percent.min(100)).unwrap_or(100)
 }
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::percent;
+
+    #[test]
+    fn percent_truncates_and_clamps_to_a_hundred() {
+        assert_eq!(percent(0, 100), 0);
+        assert_eq!(percent(50, 100), 50);
+        assert_eq!(percent(1, 3), 33);
+        assert_eq!(percent(150, 100), 100);
+    }
+
+    #[test]
+    fn percent_never_divides_by_zero() {
+        assert_eq!(percent(0, 0), 0);
+        assert_eq!(percent(42, 0), 100);
+    }
+}
