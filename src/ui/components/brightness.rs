@@ -67,6 +67,31 @@ pub fn brightness() -> GtkBox {
         })
     });
 
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<Cmd>();
+    let cmd_device = device.clone();
+    thread::spawn(move || {
+        if let Some(device) = cmd_device.as_deref() {
+            for cmd in cmd_rx {
+                let Some(mut brightness) = Brightness::from_path(device) else {
+                    crate::log::warn("brightness", "device vanished");
+                    continue;
+                };
+
+                let new_brightness = brightness.apply(&cmd);
+
+                match std::fs::write(device.join("brightness"), new_brightness.to_string()) {
+                    Ok(()) => {
+                        brightness.actual_brightness = new_brightness;
+                        let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
+                    },
+                    Err(err) => {
+                        crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
+                    },
+                }
+            }
+        }
+    });
+
     glib::spawn_future_local(glib::clone!(
         #[weak]
         container,
@@ -92,52 +117,32 @@ pub fn brightness() -> GtkBox {
     ));
 
     let scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
-    let scroll_tx = tx.clone();
-    let scroll_device = device.clone();
+    let scroll_tx = cmd_tx.clone();
     scroll.connect_scroll(move |_, _dx, dy| {
         let step_as_i8 =
             i8::try_from(CONFIG.behaviour.on_scroll_brightness_step.min(127)).unwrap_or(0);
 
-        set_brightness(
-            scroll_device.clone(),
-            SetValue::Relative(
-                if dy < 0.0 {
-                    step_as_i8
-                } else {
-                    step_as_i8.saturating_neg()
-                },
-            ),
-            scroll_tx.clone(),
-        );
+        let _ = scroll_tx.send(Cmd::SetRelative(
+            if dy < 0.0 {
+                step_as_i8
+            } else {
+                step_as_i8.saturating_neg()
+            },
+        ));
 
         glib::Propagation::Stop
     });
     container.add_controller(scroll);
 
     let click = GestureClick::new();
-    let click_tx = tx.clone();
-    let click_device = device.clone();
+    let click_tx = cmd_tx.clone();
     click.connect_released(move |_, _, _, _| {
-        set_brightness(
-            click_device.clone(),
-            SetValue::Absolute(1),
-            click_tx.clone(),
-        );
+        let _ = click_tx.send(Cmd::SetAbsolute(1));
     });
     container.add_controller(click);
 
     container
 }
-
-const fn icon_for(percent: u8) -> &'static str {
-    match percent {
-        0..=1 => "",
-        2..=33 => "󰃞",
-        34..=66 => "󰃟",
-        _ => "󰃠",
-    }
-}
-
 
 fn find_device() -> Option<PathBuf> {
     let mut devices: Vec<(u32, PathBuf)> = std::fs::read_dir("/sys/class/backlight")
@@ -195,61 +200,49 @@ impl Brightness {
 
         u8::try_from(percent.min(100)).unwrap_or(100)
     }
-}
 
-
-
-enum SetValue {
-    /// Set the value to in actual_brightness
-    Absolute(u64),
-    /// Increase / Decrease by, in percentage
-    Relative(i8),
-}
-
-fn set_brightness(
-    device: Option<PathBuf>,
-    set_value: SetValue,
-    tx: async_channel::Sender<BrightnessState>,
-) {
-    if let Some(device) = device &&
-        let Some(mut brightness) = Brightness::from_path(&device)
-    {
-        thread::spawn(move || {
-            let new_brightness = match set_value {
-                SetValue::Absolute(absolute) => absolute,
-                SetValue::Relative(relative) => {
-                    if relative > 0 {
-                        brightness.max_brightness.min(
-                            brightness.actual_brightness.saturating_add(
-                                u64::try_from(relative)
-                                    .unwrap_or(0)
-                                    .saturating_mul(brightness.max_brightness)
-                                    .saturating_div(100)
-                                    .max(1),
-                            ),
-                        )
-                    } else {
-                        brightness.actual_brightness.saturating_sub(
-                            u64::try_from(relative.saturating_neg())
+    fn apply(self, cmd: &Cmd) -> u64 {
+        match cmd {
+            Cmd::SetAbsolute(absolute) => *absolute,
+            Cmd::SetRelative(relative) => {
+                if *relative > 0 {
+                    self.max_brightness.min(
+                        self.actual_brightness.saturating_add(
+                            u64::try_from(*relative)
                                 .unwrap_or(0)
-                                .saturating_mul(brightness.max_brightness)
+                                .saturating_mul(self.max_brightness)
                                 .saturating_div(100)
                                 .max(1),
-                        )
-                    }
-                },
-            };
+                        ),
+                    )
+                } else {
+                    self.actual_brightness.saturating_sub(
+                        u64::try_from(relative.saturating_neg())
+                            .unwrap_or(0)
+                            .saturating_mul(self.max_brightness)
+                            .saturating_div(100)
+                            .max(1),
+                    )
+                }
+            },
+        }
+    }
+}
 
-            if let Err(err) = std::fs::write(device.join("brightness"), new_brightness.to_string())
-            {
-                crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
-            } else {
-                brightness.actual_brightness = new_brightness;
 
-                let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
-            }
-        });
-    } else {
-        crate::log::warn("brightness", "cannot adjust brightness: device unavailable");
+
+enum Cmd {
+    /// Set the value to in actual_brightness
+    SetAbsolute(u64),
+    /// Increase / Decrease by, in percentage
+    SetRelative(i8),
+}
+
+const fn icon_for(percent: u8) -> &'static str {
+    match percent {
+        0..=1 => "",
+        2..=33 => "󰃞",
+        34..=66 => "󰃟",
+        _ => "󰃠",
     }
 }
