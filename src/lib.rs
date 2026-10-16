@@ -7,8 +7,6 @@ mod conf;
 mod log;
 mod ui;
 
-pub const APP_ID: &str = "dev.tk.tkbar";
-
 pub fn load_css() {
     let display = gtk::gdk::Display::default().expect("Could not get default display");
 
