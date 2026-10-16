@@ -247,6 +247,8 @@ const fn icon_for(percent: u8) -> &'static str {
     }
 }
 
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
