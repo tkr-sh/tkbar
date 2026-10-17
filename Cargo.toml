@@ -26,8 +26,9 @@
     workspace = true
 
 [dependencies]
-    gtk4 = { version = "0.11", features = ["v4_12"] }
-    gtk4-layer-shell = "0.8"
+    # GTK
+    gtk4 = { version = "0.11", features = ["v4_12"], optional = true }
+    gtk4-layer-shell = { version = "0.8", optional = true }
 
     # CLI
     clap = { version = "4", optional = true, features = ["derive"] }
@@ -57,11 +58,15 @@
 
 
 [features]
-    default = ["all_components", "black", "cli", "config", "niri"]
+    default = ["all_components", "black", "cli", "config", "niri", "renderer-gtk"]
 
     #
     cli = ["dep:clap"]
     config = ["dep:directories", "dep:serde", "dep:toml"]
+
+    # Renderers
+    renderer-gtk = ["dep:gtk4", "dep:gtk4-layer-shell"]
+    renderer-wayland = []
 
     # Components
     all_components = ["battery", "brightness", "clock", "volume", "wifi"]

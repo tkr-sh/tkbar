@@ -1,5 +1,10 @@
 use {
-    super::{ComponentWidget, find_widget, spawn_poller},
+    super::{Component, spawn_poller},
+    std::{path::PathBuf, thread, time::Duration},
+};
+#[cfg(feature = "renderer-gtk")]
+use {
+    super::{GtkView, find_widget},
     crate::conf::CONFIG,
     gtk::{
         Box as GtkBox,
@@ -11,7 +16,6 @@ use {
         prelude::*,
     },
     gtk4 as gtk,
-    std::{path::PathBuf, thread, time::Duration},
 };
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -30,7 +34,7 @@ pub(crate) struct Brightness {
     cmd_rx: Option<std::sync::mpsc::Receiver<Cmd>>,
 }
 
-impl ComponentWidget for Brightness {
+impl Component for Brightness {
     fn init() -> Self {
         let device = find_device();
         if device.is_none() {
@@ -49,6 +53,63 @@ impl ComponentWidget for Brightness {
         }
     }
 
+    fn threads(&mut self) {
+        let poll_device = self.device.clone();
+        let mut warned = false;
+        spawn_poller(self.poll_tx.clone(), POLL_INTERVAL, move || {
+            Some(match poll_device.as_deref() {
+                Some(device) => {
+                    match Backlight::from_path(device) {
+                        Some(brightness) => BrightnessState::Present(brightness.percent()),
+                        None => {
+                            if !warned {
+                                crate::log::warn(
+                                    "brightness",
+                                    &format!("could not read brightness for {}", device.display()),
+                                );
+                                warned = true;
+                            }
+                            BrightnessState::NoDevice
+                        },
+                    }
+                },
+                None => BrightnessState::NoDevice,
+            })
+        });
+
+        let Some(device) = self.device.clone() else {
+            return;
+        };
+        let Some(cmd_rx) = self.cmd_rx.take() else {
+            return;
+        };
+        let cmd_device = device.clone();
+        let tx = self.poll_tx.clone();
+        thread::spawn(move || {
+            for cmd in cmd_rx {
+                let Some(mut brightness) = Backlight::from_path(&cmd_device) else {
+                    crate::log::warn("brightness", "device vanished");
+                    continue;
+                };
+
+                let new_brightness = brightness.apply(&cmd);
+
+                match std::fs::write(device.join("brightness"), new_brightness.to_string()) {
+                    Ok(()) => {
+                        brightness.actual_brightness = new_brightness;
+                        let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
+                    },
+                    Err(err) => {
+                        crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
+                    },
+                }
+            }
+        });
+    }
+}
+
+#[cfg(feature = "renderer-gtk")]
+impl GtkView for Brightness {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
         container.add_css_class("brightness");
@@ -127,60 +188,6 @@ impl ComponentWidget for Brightness {
             let _ = click_tx.send(Cmd::SetAbsolute(1));
         });
         container.add_controller(click);
-    }
-
-    fn threads(&mut self) {
-        let poll_device = self.device.clone();
-        let mut warned = false;
-        spawn_poller(self.poll_tx.clone(), POLL_INTERVAL, move || {
-            Some(match poll_device.as_deref() {
-                Some(device) => {
-                    match Backlight::from_path(device) {
-                        Some(brightness) => BrightnessState::Present(brightness.percent()),
-                        None => {
-                            if !warned {
-                                crate::log::warn(
-                                    "brightness",
-                                    &format!("could not read brightness for {}", device.display()),
-                                );
-                                warned = true;
-                            }
-                            BrightnessState::NoDevice
-                        },
-                    }
-                },
-                None => BrightnessState::NoDevice,
-            })
-        });
-
-        let Some(device) = self.device.clone() else {
-            return;
-        };
-        let Some(cmd_rx) = self.cmd_rx.take() else {
-            return;
-        };
-        let cmd_device = device.clone();
-        let tx = self.poll_tx.clone();
-        thread::spawn(move || {
-            for cmd in cmd_rx {
-                let Some(mut brightness) = Backlight::from_path(&cmd_device) else {
-                    crate::log::warn("brightness", "device vanished");
-                    continue;
-                };
-
-                let new_brightness = brightness.apply(&cmd);
-
-                match std::fs::write(device.join("brightness"), new_brightness.to_string()) {
-                    Ok(()) => {
-                        brightness.actual_brightness = new_brightness;
-                        let _ = tx.send_blocking(BrightnessState::Present(brightness.percent()));
-                    },
-                    Err(err) => {
-                        crate::log::warn("brightness", &format!("failed to set brightness: {err}"));
-                    },
-                }
-            }
-        });
     }
 }
 

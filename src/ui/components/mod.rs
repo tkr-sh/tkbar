@@ -26,16 +26,58 @@ pub(crate) use volume::Volume;
 pub(crate) use wifi::Wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
 pub(crate) use workspaces::Workspaces;
+#[cfg(feature = "renderer-gtk")]
 use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, prelude::*},
     gtk4 as gtk,
 };
 
+#[cfg(any(
+    feature = "battery",
+    feature = "brightness",
+    feature = "clock",
+    feature = "volume",
+    feature = "wifi",
+    feature = "niri",
+    feature = "hyprland",
+    feature = "sway",
+))]
+pub(crate) trait Component: Sized {
+    fn init() -> Self;
+    fn threads(&mut self);
+}
+
+#[cfg(all(
+    feature = "renderer-gtk",
+    any(
+        feature = "battery",
+        feature = "brightness",
+        feature = "clock",
+        feature = "volume",
+        feature = "wifi",
+        feature = "niri",
+        feature = "hyprland",
+        feature = "sway",
+    )
+))]
+pub(crate) trait GtkView: Component {
+    fn gtk_box() -> GtkBox;
+    fn gtk_threads(&self, container: &GtkBox);
+
+    fn create_all() -> GtkBox {
+        let container = Self::gtk_box();
+        let mut component = Self::init();
+        component.gtk_threads(&container);
+        component.threads();
+        container
+    }
+}
+
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
 #[cfg_attr(feature = "config", serde(rename_all = "lowercase"))]
-pub enum Component {
+pub enum ComponentKind {
     Logo(char),
     #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
     Workspaces,
@@ -52,63 +94,41 @@ pub enum Component {
     Clock,
 }
 
-impl Component {
+#[cfg(feature = "renderer-gtk")]
+impl ComponentKind {
     pub(crate) fn add_to_bar(&self, bar: &GtkBox) {
         match self {
-            Component::Logo(c) => {
+            ComponentKind::Logo(c) => {
                 let logo = Label::new(Some(&c.to_string()));
                 logo.add_css_class("logo");
                 logo.set_xalign(0.45);
                 bar.append(&logo);
             },
             #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
-            Component::Workspaces => bar.append(&Workspaces::create_all()),
-            Component::Spacer => bar.append(&spacer()),
+            ComponentKind::Workspaces => bar.append(&Workspaces::create_all()),
+            ComponentKind::Spacer => bar.append(&spacer()),
             #[cfg(feature = "battery")]
-            Component::Battery => bar.append(&Battery::create_all()),
+            ComponentKind::Battery => bar.append(&Battery::create_all()),
             #[cfg(feature = "wifi")]
-            Component::Wifi => bar.append(&Wifi::create_all()),
+            ComponentKind::Wifi => bar.append(&Wifi::create_all()),
             #[cfg(feature = "brightness")]
-            Component::Brightness => bar.append(&Brightness::create_all()),
+            ComponentKind::Brightness => bar.append(&Brightness::create_all()),
             #[cfg(feature = "volume")]
-            Component::Volume => bar.append(&Volume::create_all()),
+            ComponentKind::Volume => bar.append(&Volume::create_all()),
             #[cfg(feature = "clock")]
-            Component::Clock => bar.append(&Clock::create_all()),
+            ComponentKind::Clock => bar.append(&Clock::create_all()),
         }
     }
 }
 
-#[cfg(any(
-    feature = "battery",
-    feature = "brightness",
-    feature = "clock",
-    feature = "volume",
-    feature = "wifi",
-    feature = "niri",
-    feature = "hyprland",
-    feature = "sway",
-))]
-trait ComponentWidget: Sized {
-    fn init() -> Self;
-    fn gtk_box() -> GtkBox;
-    fn gtk_threads(&self, container: &GtkBox);
-    fn threads(&mut self);
-
-    fn create_all() -> GtkBox {
-        let container = Self::gtk_box();
-        let mut component = Self::init();
-        component.gtk_threads(&container);
-        component.threads();
-        container
-    }
-}
-
-#[cfg(any(
-    feature = "battery",
-    feature = "brightness",
-    feature = "clock",
-    feature = "volume",
-    feature = "wifi",
+#[cfg(all(
+    feature = "renderer-gtk",
+    any(
+        feature = "battery",
+        feature = "brightness",
+        feature = "volume",
+        feature = "wifi",
+    )
 ))]
 fn find_widget<T>(container: &GtkBox, css_class: &str) -> Option<T>
 where
@@ -123,7 +143,6 @@ where
     }
     None
 }
-
 
 #[cfg(any(feature = "battery", feature = "brightness", feature = "wifi"))]
 pub(crate) fn spawn_poller<S, P>(tx: async_channel::Sender<S>, interval: Duration, mut poll: P)
@@ -147,6 +166,7 @@ where
     });
 }
 
+#[cfg(feature = "renderer-gtk")]
 pub(crate) fn spacer() -> GtkBox {
     let spacer = GtkBox::new(CONFIG.style.position.orientation(), 0);
     spacer.set_vexpand(true);
@@ -160,8 +180,6 @@ fn percent(current: u64, max: u64) -> u8 {
 
     u8::try_from(percent.min(100)).unwrap_or(100)
 }
-
-
 
 #[cfg(all(test, any(feature = "battery", feature = "brightness")))]
 mod tests {

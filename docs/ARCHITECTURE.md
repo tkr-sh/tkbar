@@ -17,14 +17,16 @@ The `tkbar` crate:
 
 ```
 src/
-├── main.rs        entry point; parses the CLI, inits GTK, loads CSS, runs the bar
-├── lib.rs         CSS/themes (THEME_CSS), init_gtk, re-exports build_window
+├── main.rs        entry point; parses the CLI, calls the selected renderer
+├── lib.rs         renderer dispatch (run) + compile-time renderer checks
 ├── conf.rs        global CONFIG: LazyLock<Config>
 ├── log.rs         eprintln!-only logging
 ├── ui/
-│   ├── mod.rs     window + layer-shell setup, BarPosition
+│   ├── mod.rs     BarPosition (renderer-agnostic)
+│   ├── gtk/       GTK4 renderer: run(), layer-shell window, CSS, GLib loop
+│   ├── wl/        Wayland renderer (stub until it lands)
 │   └── components/
-│       ├── mod.rs         Component enum, add_to_bar, spawn_poller, spacer, clock
+│       ├── mod.rs         Component (model) + GtkView (GTK) traits, spawn_poller
 │       ├── battery.rs     battery percent/charging from sysfs
 │       ├── brightness.rs  backlight percent read/written directly via sysfs
 │       ├── volume.rs      PipeWire client for volume/mute
@@ -35,23 +37,33 @@ src/
 │           └── sway.rs    sway/i3 IPC via swayipc (sway feature)
 ```
 
-- **`main.rs`** — parses the CLI via `clap` (feature `cli`), disables the
-  gdk-pixbuf image loaders, calls `init_gtk()`, `load_css()`, and
-  `build_window()`, then runs a `glib::MainLoop`.
-- **`lib.rs`** — declares the modules, provides `init_gtk()` (GTK
-  initialization with an actionable error if there is no display), defines
-  `THEME_CSS` (selected by the active color feature), loads the optional user
-  CSS, and re-exports `build_window`.
+## Renderers
+
+The drawing backend is chosen at build time by two mutually exclusive Cargo
+features: `renderer-gtk` (default) links `gtk4`/`gtk4-layer-shell` and lives in
+[`src/ui/gtk/`](../src/ui/gtk), while `renderer-wayland` is a stub in
+[`src/ui/wl/`](../src/ui/wl) that exits with a diagnostic until the native
+layer-shell backend lands. [`lib.rs`](../src/lib.rs) `run()` dispatches to
+whichever is compiled in, and a `compile_error!` rejects builds with both or
+neither. Everything the renderers share is GTK-free: each component splits into
+a `Component` model (`init`/`threads`, owning its state and worker threads) and a
+renderer-specific view trait — today only `GtkView` (`gtk_box`/`gtk_threads`)
+behind `renderer-gtk` — so the model half compiles for either backend. Styling
+stays renderer-owned: the GTK renderer keeps its feature-selected CSS
+(`THEME_CSS` plus the optional `~/.config/tkbar/style.css`), and the Wayland
+renderer will bring its own `theme` when it lands.
+
+- **`main.rs`** — parses the CLI via `clap` (feature `cli`) and calls
+  `tkbar::run()`.
+- **`lib.rs`** — defines `run()`, which dispatches to the compiled-in renderer,
+  and emits a `compile_error!` if both (or neither) renderer feature is set.
 - **`conf.rs`** — the global `CONFIG: std::sync::LazyLock<Config>` (feature
   `config`), the `Config` struct and the hardcoded defaults.
 - **`log.rs`** — `warn(component, message)` and `error(component, message)`,
   both `eprintln!`. No logging framework.
-- **`ui/mod.rs`** — `build_window` builds the `Window`, calls
-  `init_layer_shell()`, sets the layer, anchors, and sole exclusive zone, then
-  assembles the `bar` `GtkBox` from `CONFIG.behaviour.components`. `BarPosition`
-  maps to an `Orientation` and a set of `Edge` anchors.
-- **`ui/components/*`** — individual widgets; most are a `GtkBox` holding an
-  icon and a value label, paired with the code that feeds it.
+- **`ui/components/*`** — the renderer-agnostic model, plus its GTK view; most
+  are a `GtkBox` holding an icon and a value label, paired with the code that
+  feeds it.
 
 ## The three background patterns
 
@@ -124,7 +136,7 @@ Widgets read the global `CONFIG` directly, e.g.
 Cargo feature (exactly one)
         │  #[cfg(feature = "...")]
         ▼
-THEME_CSS: &str  (lib.rs)  ──include_str!──▶  src/ui/styles/<color>.css
+THEME_CSS: &str  (ui/gtk)  ──include_str!──▶  src/ui/styles/<color>.css
         │
         ▼
 load_css()  →  CssProvider → style_context_add_provider_for_display
@@ -138,11 +150,13 @@ at `STYLE_PROVIDER_PRIORITY_USER`.
 
 ## Adding a new component
 
-1. **Add a variant** to `Component` in
+1. **Add a variant** to `ComponentKind` in
    [`src/ui/components/mod.rs`](../src/ui/components/mod.rs) and a matching
    `add_to_bar` arm.
-2. **Add a module** (e.g. `src/ui/components/<name>.rs`) and declare it
-   (`mod <name>;`) and re-export its constructor in `components/mod.rs`.
+2. **Add a module** (e.g. `src/ui/components/<name>.rs`) with its `Component`
+   model (`init`/`threads`) and, behind `renderer-gtk`, its `GtkView`
+   (`gtk_box`/`gtk_threads`); declare it (`mod <name>;`) and re-export it in
+   `components/mod.rs`.
 3. **Wire it into the UI.** If it is config-driven, make sure the new variant
    deserializes (the enum derives `serde::Deserialize` behind `config`).
 4. **Register it in the default** — add it to `default_components()` in

@@ -1,95 +1,28 @@
-#![forbid(unsafe_code)]
 #[cfg(feature = "cli")]
 pub use conf::CLI_CONFIG_PATH;
-pub use {crate::ui::build_window, conf::Config};
-use {gtk::CssProvider, gtk4 as gtk};
+pub use conf::Config;
 
 mod conf;
 mod log;
 mod ui;
 
-/// Initializes GTK, aborting with a diagnostic if it fails.
-///
-/// `gtk::init` is the first point where a missing display server
-/// (`WAYLAND_DISPLAY`/`DISPLAY`) surfaces. Ignoring its error would only defer
-/// the failure to `load_css`, with a far less actionable message.
-pub fn init_gtk() {
-    if let Err(err) = gtk::init() {
-        crate::log::error("gtk", &format!("cannot initialize GTK: {err}"));
-        std::process::exit(1);
-    }
+pub fn run() {
+    #[cfg(feature = "renderer-gtk")]
+    ui::gtk::run();
+
+    #[cfg(feature = "renderer-wayland")]
+    ui::wl::run();
 }
 
-pub fn load_css() {
-    let Some(display) = gtk::gdk::Display::default() else {
-        crate::log::error("gtk", "no default display");
-        std::process::exit(1);
-    };
+#[cfg(all(feature = "renderer-gtk", feature = "renderer-wayland"))]
+compile_error!(
+    "features `renderer-gtk` and `renderer-wayland` are mutually exclusive; enable exactly one"
+);
 
-    let provider = CssProvider::new();
-    provider.load_from_string(THEME_CSS);
-    gtk::style_context_add_provider_for_display(
-        &display,
-        &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-    );
+#[cfg(not(any(feature = "renderer-gtk", feature = "renderer-wayland")))]
+compile_error!("enable exactly one renderer: `renderer-gtk` or `renderer-wayland`");
 
-    #[cfg(feature = "config")]
-    load_custom_css(&display);
-}
-
-#[cfg(feature = "config")]
-fn load_custom_css(display: &gtk::gdk::Display) {
-    let Some(base) = directories::BaseDirs::new() else {
-        return;
-    };
-    let path = base.config_dir().join("tkbar").join("style.css");
-    let css = match std::fs::read_to_string(&path) {
-        Ok(css) => css,
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return,
-        Err(err) => {
-            crate::log::warn("config", &format!("cannot read {}: {err}", path.display()));
-            return;
-        },
-    };
-
-    let provider = CssProvider::new();
-    provider.load_from_string(&css);
-    gtk::style_context_add_provider_for_display(
-        display,
-        &provider,
-        gtk::STYLE_PROVIDER_PRIORITY_USER,
-    );
-}
-
-/// Exactly one color feature must be enabled; it selects the compiled-in base
-/// stylesheet. Using `#[cfg]` (rather than runtime `cfg!`) means only the
-/// selected stylesheet is `include_str!`-ed into the binary — the other nine are
-/// not linked at all. `color_feature_count` + the const assert below enforce the
-/// "exactly one" rule with a clear message; without it, zero colors would just
-/// surface as a "cannot find `THEME_CSS`" error and two as a duplicate
-/// definition.
-#[cfg(feature = "black")]
-const THEME_CSS: &str = include_str!("ui/styles/black.css");
-#[cfg(feature = "blue")]
-const THEME_CSS: &str = include_str!("ui/styles/blue.css");
-#[cfg(feature = "cyan")]
-const THEME_CSS: &str = include_str!("ui/styles/cyan.css");
-#[cfg(feature = "green")]
-const THEME_CSS: &str = include_str!("ui/styles/green.css");
-#[cfg(feature = "orange")]
-const THEME_CSS: &str = include_str!("ui/styles/orange.css");
-#[cfg(feature = "pink")]
-const THEME_CSS: &str = include_str!("ui/styles/pink.css");
-#[cfg(feature = "purple")]
-const THEME_CSS: &str = include_str!("ui/styles/purple.css");
-#[cfg(feature = "red")]
-const THEME_CSS: &str = include_str!("ui/styles/red.css");
-#[cfg(feature = "white")]
-const THEME_CSS: &str = include_str!("ui/styles/white.css");
-#[cfg(feature = "yellow")]
-const THEME_CSS: &str = include_str!("ui/styles/yellow.css");
-
+#[cfg(feature = "renderer-gtk")]
 const fn color_feature_count() -> usize {
     let mut n = 0;
     if cfg!(feature = "black") {
@@ -125,6 +58,7 @@ const fn color_feature_count() -> usize {
     n
 }
 
+#[cfg(feature = "renderer-gtk")]
 const _: () = assert!(
     color_feature_count() == 1,
     "exactly one color feature must be enabled: black, blue, cyan, green, orange, pink, purple, red, white, yellow"

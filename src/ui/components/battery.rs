@@ -1,14 +1,18 @@
 use {
-    super::{ComponentWidget, find_widget, spawn_poller},
-    crate::conf::CONFIG,
-    gtk::{Box as GtkBox, Label, glib, prelude::*},
-    gtk4::{self as gtk},
+    super::{Component, spawn_poller},
     std::{
         fs,
         path::{Path, PathBuf},
         sync::atomic::{AtomicBool, AtomicU8, Ordering},
         time::Duration,
     },
+};
+#[cfg(feature = "renderer-gtk")]
+use {
+    super::{GtkView, find_widget},
+    crate::conf::CONFIG,
+    gtk::{Box as GtkBox, Label, glib, prelude::*},
+    gtk4::{self as gtk},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,7 +54,7 @@ pub(crate) struct Battery {
     ac_rx: async_channel::Receiver<bool>,
 }
 
-impl ComponentWidget for Battery {
+impl Component for Battery {
     fn init() -> Self {
         let (battery_tx, battery_rx) = async_channel::unbounded();
         let (ac_tx, ac_rx) = async_channel::unbounded();
@@ -63,6 +67,50 @@ impl ComponentWidget for Battery {
         }
     }
 
+    fn threads(&mut self) {
+        let (batteries, acs) = find_power_supplies();
+
+        if batteries.is_empty() {
+            crate::log::warn("battery", "no battery found under /sys/class/power_supply");
+        }
+
+        if acs.is_empty() {
+            crate::log::warn("ac", "no ac found under /sys/class/power_supply");
+        }
+
+        let mut warned = false;
+        spawn_poller(self.battery_tx.clone(), POLL_INTERVAL_PERCENT, move || {
+            Some(
+                batteries
+                    .iter()
+                    .filter_map(|battery| {
+                        match read_battery_state(battery) {
+                            Some(state) => Some(state),
+                            None => {
+                                if !warned {
+                                    crate::log::warn(
+                                        "battery",
+                                        &format!("could not read state for {}", battery.display()),
+                                    );
+                                    warned = true;
+                                }
+                                None
+                            },
+                        }
+                    })
+                    .reduce(BatteryData::merge)
+                    .map_or(BatteryState::NoBattery, BatteryState::Present),
+            )
+        });
+
+        spawn_poller(self.ac_tx.clone(), POLL_INTERVAL_CHARGING, move || {
+            Some(acs.iter().any(|ac| read_online(ac) == Some(true)))
+        });
+    }
+}
+
+#[cfg(feature = "renderer-gtk")]
+impl GtkView for Battery {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
         container.add_css_class("battery");
@@ -155,47 +203,6 @@ impl ComponentWidget for Battery {
                 }
             }
         ));
-    }
-
-    fn threads(&mut self) {
-        let (batteries, acs) = find_power_supplies();
-
-        if batteries.is_empty() {
-            crate::log::warn("battery", "no battery found under /sys/class/power_supply");
-        }
-
-        if acs.is_empty() {
-            crate::log::warn("ac", "no ac found under /sys/class/power_supply");
-        }
-
-        let mut warned = false;
-        spawn_poller(self.battery_tx.clone(), POLL_INTERVAL_PERCENT, move || {
-            Some(
-                batteries
-                    .iter()
-                    .filter_map(|battery| {
-                        match read_battery_state(battery) {
-                            Some(state) => Some(state),
-                            None => {
-                                if !warned {
-                                    crate::log::warn(
-                                        "battery",
-                                        &format!("could not read state for {}", battery.display()),
-                                    );
-                                    warned = true;
-                                }
-                                None
-                            },
-                        }
-                    })
-                    .reduce(BatteryData::merge)
-                    .map_or(BatteryState::NoBattery, BatteryState::Present),
-            )
-        });
-
-        spawn_poller(self.ac_tx.clone(), POLL_INTERVAL_CHARGING, move || {
-            Some(acs.iter().any(|ac| read_online(ac) == Some(true)))
-        });
     }
 }
 
