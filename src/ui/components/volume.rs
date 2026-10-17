@@ -1,4 +1,5 @@
 use {
+    super::{ComponentWidget, find_widget},
     crate::conf::CONFIG,
     gtk::{
         Box as GtkBox,
@@ -56,71 +57,103 @@ struct VolUpdate {
     nb_channels: Option<usize>,
 }
 
-pub(crate) fn volume() -> GtkBox {
-    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
-    container.add_css_class("volume");
+pub(crate) struct Volume {
+    cmd_tx: pipewire::channel::Sender<Cmd>,
+    cmd_rx: Option<pipewire::channel::Receiver<Cmd>>,
+    update_tx: async_channel::Sender<VolState>,
+    update_rx: async_channel::Receiver<VolState>,
+}
 
-    let icon = Label::new(Some("\u{f057f}"));
-    icon.add_css_class("icon");
-    icon.set_halign(gtk::Align::Center);
+impl ComponentWidget for Volume {
+    fn init() -> Self {
+        let (cmd_tx, cmd_rx) = pipewire::channel::channel::<Cmd>();
+        let (update_tx, update_rx) = async_channel::unbounded::<VolState>();
 
-    let value = Label::new(Some("--"));
-    value.add_css_class("value");
-    value.set_halign(gtk::Align::Center);
+        Self {
+            cmd_tx,
+            cmd_rx: Some(cmd_rx),
+            update_tx,
+            update_rx,
+        }
+    }
 
-    container.append(&icon);
-    container.append(&value);
+    fn gtk_box() -> GtkBox {
+        let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
+        container.add_css_class("volume");
 
-    let (tx, rx) = pipewire::channel::channel::<Cmd>();
-    let (vol_update_tx, vol_update_rx) = async_channel::unbounded::<VolState>();
+        let icon = Label::new(Some("\u{f057f}"));
+        icon.add_css_class("icon");
+        icon.set_halign(gtk::Align::Center);
 
+        let value = Label::new(Some("--"));
+        value.add_css_class("value");
+        value.set_halign(gtk::Align::Center);
 
-    launch_pipewire_thread(rx, vol_update_tx);
+        container.append(&icon);
+        container.append(&value);
 
-    glib::spawn_future_local(glib::clone!(
-        #[weak]
-        container,
-        #[weak]
-        icon,
-        #[weak]
-        value,
-        #[upgrade_or_default]
-        async move {
-            while let Ok(s) = vol_update_rx.recv().await {
-                icon.set_text(icon_for(&s));
-                if s.muted {
-                    value.set_text("mute");
-                    container.add_css_class("muted");
-                } else {
-                    value.set_text(&s.percent.to_string());
-                    container.remove_css_class("muted");
+        container
+    }
+
+    fn gtk_threads(&self, container: &GtkBox) {
+        let Some(icon) = find_widget::<Label>(container, "icon") else {
+            return;
+        };
+        let Some(value) = find_widget::<Label>(container, "value") else {
+            return;
+        };
+        let container = container.clone();
+        let vol_update_rx = self.update_rx.clone();
+        glib::spawn_future_local(glib::clone!(
+            #[weak]
+            container,
+            #[weak]
+            icon,
+            #[weak]
+            value,
+            #[upgrade_or_default]
+            async move {
+                while let Ok(s) = vol_update_rx.recv().await {
+                    icon.set_text(icon_for(&s));
+                    if s.muted {
+                        value.set_text("mute");
+                        container.add_css_class("muted");
+                    } else {
+                        value.set_text(&s.percent.to_string());
+                        container.remove_css_class("muted");
+                    }
                 }
             }
-        }
-    ));
+        ));
 
+        let on_scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
+        let on_scroll_tx = self.cmd_tx.clone();
+        on_scroll.connect_scroll(move |_, _dx, dy| {
+            if dy < 0.0 {
+                let _ = on_scroll_tx.send(Cmd::IncVolume);
+            } else {
+                let _ = on_scroll_tx.send(Cmd::DecVolume);
+            }
+            glib::Propagation::Stop
+        });
 
-    let on_scroll = EventControllerScroll::new(EventControllerScrollFlags::VERTICAL);
-    let on_scroll_tx = tx.clone();
-    on_scroll.connect_scroll(move |_, _dx, dy| {
-        if dy < 0.0 {
-            let _ = on_scroll_tx.send(Cmd::IncVolume);
-        } else {
-            let _ = on_scroll_tx.send(Cmd::DecVolume);
-        }
-        glib::Propagation::Stop
-    });
+        let on_click = GestureClick::new();
+        let on_click_tx = self.cmd_tx.clone();
+        on_click.connect_released(move |_, _, _, _| {
+            let _ = on_click_tx.send(Cmd::ToggleMute);
+        });
 
-    let on_click = GestureClick::new();
-    let on_click_tx = tx.clone();
-    on_click.connect_released(move |_, _, _, _| {
-        let _ = on_click_tx.send(Cmd::ToggleMute);
-    });
+        container.add_controller(on_scroll);
+        container.add_controller(on_click);
+    }
 
-    container.add_controller(on_scroll);
-    container.add_controller(on_click);
+    fn threads(&mut self) {
+        let Some(cmd_rx) = self.cmd_rx.take() else {
+            return;
+        };
 
-    container
+        launch_pipewire_thread(cmd_rx, self.update_tx.clone());
+    }
 }
 
 fn launch_pipewire_thread(rx: Receiver<Cmd>, vol_update_tx: async_channel::Sender<VolState>) {

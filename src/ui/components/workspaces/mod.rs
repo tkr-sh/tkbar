@@ -1,4 +1,5 @@
 use {
+    super::ComponentWidget,
     crate::conf::CONFIG,
     gtk::{Align, Box as GtkBox, Button, glib, prelude::*},
     gtk4 as gtk,
@@ -26,68 +27,85 @@ struct Ws {
     is_focused: bool,
 }
 
+pub(crate) struct Workspaces {
+    tx: async_channel::Sender<Vec<Ws>>,
+    rx: async_channel::Receiver<Vec<Ws>>,
+}
+
 #[cfg(any(feature = "hyprland", feature = "niri", feature = "sway"))]
-pub(crate) fn workspaces() -> GtkBox {
-    let container = GtkBox::new(CONFIG.style.position.orientation(), 4);
-    container.add_css_class("workspaces");
+impl ComponentWidget for Workspaces {
+    fn init() -> Self {
+        let (tx, rx) = async_channel::unbounded::<Vec<Ws>>();
 
-    let (tx, rx) = async_channel::unbounded::<Vec<Ws>>();
+        Self { tx, rx }
+    }
 
-    thread::spawn(move || {
-        #[cfg(feature = "niri")]
-        if let Err(e) = niri::event_loop(&tx) {
-            crate::log::warn("workspaces", &format!("niri IPC error: {e}"));
-        }
+    fn gtk_box() -> GtkBox {
+        let container = GtkBox::new(CONFIG.style.position.orientation(), 4);
+        container.add_css_class("workspaces");
+        container
+    }
 
-        #[cfg(feature = "hyprland")]
-        if let Err(e) = hypr::event_loop(&tx) {
-            crate::log::warn("workspaces", &format!("hyprland IPC error: {e}"));
-        }
-
-        #[cfg(feature = "sway")]
-        if let Err(e) = sway::event_loop(&tx) {
-            crate::log::warn("workspaces", &format!("sway IPC error: {e}"));
-        }
-    });
-
-    glib::spawn_future_local(glib::clone!(
-        #[weak]
-        container,
-        #[upgrade_or_default]
-        async move {
-            while let Ok(list) = rx.recv().await {
-                while let Some(child) = container.first_child() {
-                    container.remove(&child);
-                }
-
-                for ws in &list {
-                    if !CONFIG.behaviour.should_show_empty_workspace &&
-                        !ws.is_active &&
-                        !ws.is_focused
-                    {
-                        continue;
+    fn gtk_threads(&self, container: &GtkBox) {
+        let container = container.clone();
+        let rx = self.rx.clone();
+        glib::spawn_future_local(glib::clone!(
+            #[weak]
+            container,
+            #[upgrade_or_default]
+            async move {
+                while let Ok(list) = rx.recv().await {
+                    while let Some(child) = container.first_child() {
+                        container.remove(&child);
                     }
 
-                    let btn = Button::with_label(&ws.label);
-                    btn.add_css_class("workspace");
-                    if ws.is_focused {
-                        btn.add_css_class("current");
-                    }
-                    if !ws.is_active {
-                        btn.add_css_class("inactive");
-                    }
-                    btn.set_valign(Align::Center);
-                    btn.set_halign(Align::Center);
+                    for ws in &list {
+                        if !CONFIG.behaviour.should_show_empty_workspace &&
+                            !ws.is_active &&
+                            !ws.is_focused
+                        {
+                            continue;
+                        }
 
-                    let id = ws.id;
-                    btn.connect_clicked(move |_| focus_workspace(id));
-                    container.append(&btn);
+                        let btn = Button::with_label(&ws.label);
+                        btn.add_css_class("workspace");
+                        if ws.is_focused {
+                            btn.add_css_class("current");
+                        }
+                        if !ws.is_active {
+                            btn.add_css_class("inactive");
+                        }
+                        btn.set_valign(Align::Center);
+                        btn.set_halign(Align::Center);
+
+                        let id = ws.id;
+                        btn.connect_clicked(move |_| focus_workspace(id));
+                        container.append(&btn);
+                    }
                 }
             }
-        }
-    ));
+        ));
+    }
 
-    container
+    fn threads(&mut self) {
+        let tx = self.tx.clone();
+        thread::spawn(move || {
+            #[cfg(feature = "niri")]
+            if let Err(e) = niri::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("niri IPC error: {e}"));
+            }
+
+            #[cfg(feature = "hyprland")]
+            if let Err(e) = hypr::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("hyprland IPC error: {e}"));
+            }
+
+            #[cfg(feature = "sway")]
+            if let Err(e) = sway::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("sway IPC error: {e}"));
+            }
+        });
+    }
 }
 
 fn focus_workspace(id: u64) {

@@ -1,31 +1,52 @@
 use {
+    super::{ComponentWidget, find_widget},
     crate::conf::CONFIG,
-    gtk::{Label, Orientation, glib, prelude::*},
+    gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
     std::fmt::Write as _,
 };
 
-pub(crate) fn clock() -> Label {
-    let clock = Label::new(None);
-    clock.add_css_class("clock");
-    let mut buf = String::with_capacity(8);
-    update_clock(&clock, &mut buf);
+pub(crate) struct Clock;
 
-    glib::timeout_add_seconds_local(
-        1,
-        glib::clone!(
-            #[weak]
-            clock,
-            #[upgrade_or]
-            glib::ControlFlow::Break,
-            move || {
-                update_clock(&clock, &mut buf);
-                glib::ControlFlow::Continue
-            }
-        ),
-    );
+impl ComponentWidget for Clock {
+    fn init() -> Self {
+        Self
+    }
 
-    clock
+    fn gtk_box() -> GtkBox {
+        let container = GtkBox::new(CONFIG.style.position.orientation(), 0);
+
+        let label = Label::new(None);
+        label.add_css_class("clock");
+        container.append(&label);
+
+        container
+    }
+
+    fn gtk_threads(&self, container: &GtkBox) {
+        let Some(label) = find_widget::<Label>(container, "clock") else {
+            return;
+        };
+
+        let mut buf = String::with_capacity(8);
+        update_clock(&label, &mut buf);
+
+        glib::timeout_add_seconds_local(
+            1,
+            glib::clone!(
+                #[weak]
+                label,
+                #[upgrade_or]
+                glib::ControlFlow::Break,
+                move || {
+                    update_clock(&label, &mut buf);
+                    glib::ControlFlow::Continue
+                }
+            ),
+        );
+    }
+
+    fn threads(&mut self) {}
 }
 
 

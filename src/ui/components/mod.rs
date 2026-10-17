@@ -15,17 +15,17 @@ mod workspaces;
 use std::{thread, time::Duration};
 
 #[cfg(feature = "battery")]
-pub(crate) use battery::battery;
+pub(crate) use battery::Battery;
 #[cfg(feature = "brightness")]
-pub(crate) use brightness::brightness;
+pub(crate) use brightness::Brightness;
 #[cfg(feature = "clock")]
-pub(crate) use clock::clock;
+pub(crate) use clock::Clock;
 #[cfg(feature = "volume")]
-pub(crate) use volume::volume;
+pub(crate) use volume::Volume;
 #[cfg(feature = "wifi")]
-pub(crate) use wifi::wifi;
+pub(crate) use wifi::Wifi;
 #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
-pub(crate) use workspaces::workspaces;
+pub(crate) use workspaces::Workspaces;
 use {
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, prelude::*},
@@ -62,33 +62,75 @@ impl Component {
                 bar.append(&logo);
             },
             #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
-            Component::Workspaces => bar.append(&workspaces()),
+            Component::Workspaces => bar.append(&Workspaces::create_all()),
             Component::Spacer => bar.append(&spacer()),
             #[cfg(feature = "battery")]
-            Component::Battery => bar.append(&battery()),
+            Component::Battery => bar.append(&Battery::create_all()),
             #[cfg(feature = "wifi")]
-            Component::Wifi => bar.append(&wifi()),
+            Component::Wifi => bar.append(&Wifi::create_all()),
             #[cfg(feature = "brightness")]
-            Component::Brightness => bar.append(&brightness()),
+            Component::Brightness => bar.append(&Brightness::create_all()),
             #[cfg(feature = "volume")]
-            Component::Volume => bar.append(&volume()),
+            Component::Volume => bar.append(&Volume::create_all()),
             #[cfg(feature = "clock")]
-            Component::Clock => bar.append(&clock()),
+            Component::Clock => bar.append(&Clock::create_all()),
         }
     }
 }
 
+#[cfg(any(
+    feature = "battery",
+    feature = "brightness",
+    feature = "clock",
+    feature = "volume",
+    feature = "wifi",
+    feature = "niri",
+    feature = "hyprland",
+    feature = "sway",
+))]
+trait ComponentWidget: Sized {
+    fn init() -> Self;
+    fn gtk_box() -> GtkBox;
+    fn gtk_threads(&self, container: &GtkBox);
+    fn threads(&mut self);
+
+    fn create_all() -> GtkBox {
+        let container = Self::gtk_box();
+        let mut component = Self::init();
+        component.gtk_threads(&container);
+        component.threads();
+        container
+    }
+}
+
+#[cfg(any(
+    feature = "battery",
+    feature = "brightness",
+    feature = "clock",
+    feature = "volume",
+    feature = "wifi",
+))]
+fn find_widget<T>(container: &GtkBox, css_class: &str) -> Option<T>
+where
+    T: IsA<gtk::Widget>,
+{
+    let mut child = container.first_child();
+    while let Some(current) = child {
+        if current.has_css_class(css_class) {
+            return current.downcast::<T>().ok();
+        }
+        child = current.next_sibling();
+    }
+    None
+}
+
+
 #[cfg(any(feature = "battery", feature = "brightness", feature = "wifi"))]
-pub(crate) fn spawn_poller<S, P>(
-    interval: Duration,
-    mut poll: P,
-) -> (async_channel::Sender<S>, async_channel::Receiver<S>)
+pub(crate) fn spawn_poller<S, P>(tx: async_channel::Sender<S>, interval: Duration, mut poll: P)
 where
     S: Clone + PartialEq + Send + 'static,
     P: FnMut() -> Option<S> + Send + 'static,
 {
-    let (tx, rx) = async_channel::unbounded();
-    let poll_tx = tx.clone();
     thread::spawn(move || {
         let mut last: Option<S> = None;
         loop {
@@ -96,14 +138,13 @@ where
                 last.as_ref() != Some(&state)
             {
                 last = Some(state.clone());
-                if poll_tx.send_blocking(state).is_err() {
+                if tx.send_blocking(state).is_err() {
                     return;
                 }
             }
             thread::sleep(interval);
         }
     });
-    (tx, rx)
 }
 
 pub(crate) fn spacer() -> GtkBox {

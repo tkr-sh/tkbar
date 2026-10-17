@@ -1,4 +1,5 @@
 use {
+    super::{ComponentWidget, find_widget, spawn_poller},
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4::{self as gtk},
@@ -42,125 +43,160 @@ static IS_CHARGING: AtomicBool = AtomicBool::new(false);
 static PERCENT: AtomicU8 = AtomicU8::new(100);
 const CRITICAL_PERCENT: u8 = 15;
 
-pub(crate) fn battery() -> GtkBox {
-    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
-    container.add_css_class("battery");
+pub(crate) struct Battery {
+    battery_tx: async_channel::Sender<BatteryState>,
+    battery_rx: async_channel::Receiver<BatteryState>,
+    ac_tx: async_channel::Sender<bool>,
+    ac_rx: async_channel::Receiver<bool>,
+}
 
-    let icon = Label::new(Some("󰁹"));
-    icon.add_css_class("icon");
-    icon.set_halign(gtk::Align::Center);
+impl ComponentWidget for Battery {
+    fn init() -> Self {
+        let (battery_tx, battery_rx) = async_channel::unbounded();
+        let (ac_tx, ac_rx) = async_channel::unbounded();
 
-    let value = Label::new(Some("--"));
-    value.add_css_class("value");
-    value.set_halign(gtk::Align::Center);
-
-    container.append(&icon);
-    container.append(&value);
-
-    let (batteries, acs) = find_power_supplies();
-
-    if batteries.is_empty() {
-        crate::log::warn("battery", "no battery found under /sys/class/power_supply");
+        Self {
+            battery_tx,
+            battery_rx,
+            ac_tx,
+            ac_rx,
+        }
     }
 
-    if acs.is_empty() {
-        crate::log::warn("ac", "no ac found under /sys/class/power_supply");
+    fn gtk_box() -> GtkBox {
+        let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
+        container.add_css_class("battery");
+
+        let icon = Label::new(Some("󰁹"));
+        icon.add_css_class("icon");
+        icon.set_halign(gtk::Align::Center);
+
+        let value = Label::new(Some("--"));
+        value.add_css_class("value");
+        value.set_halign(gtk::Align::Center);
+
+        container.append(&icon);
+        container.append(&value);
+
+        container
     }
 
+    fn gtk_threads(&self, container: &GtkBox) {
+        let Some(icon) = find_widget::<Label>(container, "icon") else {
+            return;
+        };
+        let Some(value) = find_widget::<Label>(container, "value") else {
+            return;
+        };
 
-    let mut warned = false;
-    let (_, rx_battery) = super::spawn_poller(POLL_INTERVAL_PERCENT, move || {
-        Some(
-            batteries
-                .iter()
-                .filter_map(|battery| {
-                    match read_battery_state(battery) {
-                        Some(state) => Some(state),
-                        None => {
-                            if !warned {
-                                crate::log::warn(
-                                    "battery",
-                                    &format!("could not read state for {}", battery.display()),
-                                );
-                                warned = true;
+        let container = container.clone();
+        let rx_battery = self.battery_rx.clone();
+        glib::spawn_future_local(glib::clone!(
+            #[weak]
+            container,
+            #[weak]
+            icon,
+            #[weak]
+            value,
+            #[upgrade_or_default]
+            async move {
+                while let Ok(state) = rx_battery.recv().await {
+                    match state {
+                        BatteryState::NoBattery => {
+                            container.set_visible(false);
+                        },
+                        BatteryState::Present(battery) => {
+                            container.set_visible(true);
+                            let is_charging = IS_CHARGING.load(Ordering::Relaxed);
+
+                            icon.set_text(icon_for(battery.percent(), is_charging));
+                            value.set_text(&battery.percent().to_string());
+
+
+                            if !is_charging && battery.percent() <= CRITICAL_PERCENT {
+                                container.add_css_class("critical");
+                            } else {
+                                container.remove_css_class("critical");
                             }
-                            None
+
+                            PERCENT.store(battery.percent(), Ordering::Relaxed);
                         },
                     }
-                })
-                .reduce(BatteryData::merge)
-                .map_or(BatteryState::NoBattery, BatteryState::Present),
-        )
-    });
+                }
+            }
+        ));
 
-    let (_, rx_ac) = super::spawn_poller(POLL_INTERVAL_CHARGING, move || {
-        Some(acs.iter().any(|ac| read_online(ac) == Some(true)))
-    });
+        let container = container.clone();
+        let rx_ac = self.ac_rx.clone();
+        glib::spawn_future_local(glib::clone!(
+            #[weak]
+            container,
+            #[weak]
+            icon,
+            #[upgrade_or_default]
+            async move {
+                while let Ok(is_charging) = rx_ac.recv().await {
+                    let percent = PERCENT.load(Ordering::Relaxed);
 
-    glib::spawn_future_local(glib::clone!(
-        #[weak]
-        container,
-        #[weak]
-        icon,
-        #[weak]
-        value,
-        #[upgrade_or_default]
-        async move {
-            while let Ok(state) = rx_battery.recv().await {
-                match state {
-                    BatteryState::NoBattery => {
-                        container.set_visible(false);
-                    },
-                    BatteryState::Present(battery) => {
-                        container.set_visible(true);
-                        let is_charging = IS_CHARGING.load(Ordering::Relaxed);
+                    if is_charging {
+                        container.add_css_class("charging");
+                    } else {
+                        container.remove_css_class("charging");
+                    }
 
-                        icon.set_text(icon_for(battery.percent(), is_charging));
-                        value.set_text(&battery.percent().to_string());
+                    if !is_charging && percent <= CRITICAL_PERCENT {
+                        container.add_css_class("critical");
+                    } else {
+                        container.remove_css_class("critical");
+                    }
 
+                    icon.set_text(icon_for(percent, is_charging));
+                    IS_CHARGING.store(is_charging, Ordering::Relaxed);
+                }
+            }
+        ));
+    }
 
-                        if !is_charging && battery.percent() <= CRITICAL_PERCENT {
-                            container.add_css_class("critical");
-                        } else {
-                            container.remove_css_class("critical");
+    fn threads(&mut self) {
+        let (batteries, acs) = find_power_supplies();
+
+        if batteries.is_empty() {
+            crate::log::warn("battery", "no battery found under /sys/class/power_supply");
+        }
+
+        if acs.is_empty() {
+            crate::log::warn("ac", "no ac found under /sys/class/power_supply");
+        }
+
+        let mut warned = false;
+        spawn_poller(self.battery_tx.clone(), POLL_INTERVAL_PERCENT, move || {
+            Some(
+                batteries
+                    .iter()
+                    .filter_map(|battery| {
+                        match read_battery_state(battery) {
+                            Some(state) => Some(state),
+                            None => {
+                                if !warned {
+                                    crate::log::warn(
+                                        "battery",
+                                        &format!("could not read state for {}", battery.display()),
+                                    );
+                                    warned = true;
+                                }
+                                None
+                            },
                         }
+                    })
+                    .reduce(BatteryData::merge)
+                    .map_or(BatteryState::NoBattery, BatteryState::Present),
+            )
+        });
 
-                        PERCENT.store(battery.percent(), Ordering::Relaxed);
-                    },
-                }
-            }
-        }
-    ));
-
-    glib::spawn_future_local(glib::clone!(
-        #[weak]
-        container,
-        #[weak]
-        icon,
-        #[upgrade_or_default]
-        async move {
-            while let Ok(is_charging) = rx_ac.recv().await {
-                let percent = PERCENT.load(Ordering::Relaxed);
-
-                if is_charging {
-                    container.add_css_class("charging");
-                } else {
-                    container.remove_css_class("charging");
-                }
-
-                if !is_charging && percent <= CRITICAL_PERCENT {
-                    container.add_css_class("critical");
-                } else {
-                    container.remove_css_class("critical");
-                }
-
-                icon.set_text(icon_for(percent, is_charging));
-                IS_CHARGING.store(is_charging, Ordering::Relaxed);
-            }
-        }
-    ));
-
-    container
+        spawn_poller(self.ac_tx.clone(), POLL_INTERVAL_CHARGING, move || {
+            Some(acs.iter().any(|ac| read_online(ac) == Some(true)))
+        });
+    }
 }
 
 #[allow(

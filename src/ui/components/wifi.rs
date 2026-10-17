@@ -1,4 +1,5 @@
 use {
+    super::{ComponentWidget, find_widget, spawn_poller},
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4 as gtk,
@@ -13,55 +14,77 @@ enum WifiState {
 
 const POLL_INTERVAL: Duration = Duration::from_secs(5);
 
-pub(crate) fn wifi() -> GtkBox {
-    let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
-    container.add_css_class("wifi");
+pub(crate) struct Wifi {
+    tx: async_channel::Sender<WifiState>,
+    rx: async_channel::Receiver<WifiState>,
+}
 
-    let icon = Label::new(Some("\u{f092d}"));
-    icon.add_css_class("icon");
-    icon.set_halign(gtk::Align::Center);
-    icon.set_justify(gtk::Justification::Center);
+impl ComponentWidget for Wifi {
+    fn init() -> Self {
+        let (tx, rx) = async_channel::unbounded();
 
-    container.append(&icon);
+        Self { tx, rx }
+    }
 
-    let mut warned = false;
-    let (_, rx) = super::spawn_poller(POLL_INTERVAL, move || {
-        match query() {
-            Some(state) => Some(state),
-            None => {
-                if !warned {
-                    crate::log::warn("wifi", "nl80211 query failed");
-                    warned = true;
-                }
-                Some(WifiState::Disconnected)
-            },
-        }
-    });
+    fn gtk_box() -> GtkBox {
+        let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
+        container.add_css_class("wifi");
 
-    glib::spawn_future_local(glib::clone!(
-        #[weak]
-        container,
-        #[weak]
-        icon,
-        #[upgrade_or_default]
-        async move {
-            while let Ok(state) = rx.recv().await {
-                icon.set_text(icon_for(&state));
-                match &state {
-                    WifiState::Connected { ssid, signal: _ } => {
-                        container.set_tooltip_text(Some(ssid));
-                        container.remove_css_class("down");
-                    },
-                    WifiState::Disconnected => {
-                        container.set_tooltip_text(Some("disconnected"));
-                        container.add_css_class("down");
-                    },
+        let icon = Label::new(Some("\u{f092d}"));
+        icon.add_css_class("icon");
+        icon.set_halign(gtk::Align::Center);
+        icon.set_justify(gtk::Justification::Center);
+
+        container.append(&icon);
+
+        container
+    }
+
+    fn gtk_threads(&self, container: &GtkBox) {
+        let Some(icon) = find_widget::<Label>(container, "icon") else {
+            return;
+        };
+        let container = container.clone();
+        let rx = self.rx.clone();
+        glib::spawn_future_local(glib::clone!(
+            #[weak]
+            container,
+            #[weak]
+            icon,
+            #[upgrade_or_default]
+            async move {
+                while let Ok(state) = rx.recv().await {
+                    icon.set_text(icon_for(&state));
+                    match &state {
+                        WifiState::Connected { ssid, signal: _ } => {
+                            container.set_tooltip_text(Some(ssid));
+                            container.remove_css_class("down");
+                        },
+                        WifiState::Disconnected => {
+                            container.set_tooltip_text(Some("disconnected"));
+                            container.add_css_class("down");
+                        },
+                    }
                 }
             }
-        }
-    ));
+        ));
+    }
 
-    container
+    fn threads(&mut self) {
+        let mut warned = false;
+        spawn_poller(self.tx.clone(), POLL_INTERVAL, move || {
+            match query() {
+                Some(state) => Some(state),
+                None => {
+                    if !warned {
+                        crate::log::warn("wifi", "nl80211 query failed");
+                        warned = true;
+                    }
+                    Some(WifiState::Disconnected)
+                },
+            }
+        });
+    }
 }
 
 fn query() -> Option<WifiState> {
