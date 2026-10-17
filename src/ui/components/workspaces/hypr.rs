@@ -1,6 +1,6 @@
 use {
     super::Ws,
-    crate::ui::CONFIG,
+    crate::conf::CONFIG,
     hyprland::{
         data::{Workspace, Workspaces},
         dispatch::{Dispatch, DispatchType, WorkspaceIdentifierWithSpecial},

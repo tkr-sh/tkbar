@@ -27,6 +27,9 @@ See the README's [Security](../README.md#security) section and
 
 There are several categories of features in [`Cargo.toml`](../Cargo.toml):
 
+- Exactly one renderer: `renderer-gtk` (the default GTK4 backend, linking
+  `gtk4`/`gtk4-layer-shell`) or `renderer-wayland` (a stub until the native
+  backend lands). A `compile_error!` rejects builds with both or neither.
 - `cli` — the optional clap-based CLI (`--help`, `--version`, `--config`).
 - `config` — the optional TOML/CSS configuration. It pulls in `directories`,
   `serde`, and `toml` (all `optional = true`). Only `serde` is already present
@@ -44,11 +47,12 @@ There are several categories of features in [`Cargo.toml`](../Cargo.toml):
   all five at once. The `doc` feature is used only to regenerate the default
   configuration.
 
-The default is `all_components` + `black` + `cli` + `config` + `niri`
-(`default = ["all_components", "black", "cli", "config", "niri"]`).
+The default is `all_components` + `black` + `cli` + `config` + `niri` +
+`renderer-gtk`
+(`default = ["all_components", "black", "cli", "config", "niri", "renderer-gtk"]`).
 
-**Exactly one color must be enabled.** This is enforced by a `const` assert in
-[`src/lib.rs`](../src/lib.rs):
+**Exactly one color must be enabled** (for the GTK renderer). This is enforced
+by a `const` assert in [`src/lib.rs`](../src/lib.rs):
 
 ```rust
 const _: () = assert!(
@@ -58,9 +62,10 @@ const _: () = assert!(
 ```
 
 Color themes are selected with `#[cfg(feature = "...")]` and embedded with
-`include_str!` (see `THEME_CSS` in `src/lib.rs`). Because this is compile-time
-selection rather than runtime `cfg!`, only the selected stylesheet is linked
-into the binary — the other nine are not.
+`include_str!` (see `THEME_CSS` in `src/ui/gtk/mod.rs`). Because this is
+compile-time selection rather than runtime `cfg!`, only the selected stylesheet
+is linked into the binary — the other nine are not. Styling is renderer-owned:
+the Wayland renderer will get its own `theme` when it lands.
 
 ### Building with feature combinations
 
@@ -68,11 +73,11 @@ into the binary — the other nine are not.
 # the default: black + cli + config + niri + volume + wifi
 cargo build
 
-# purple theme + config + cli
-cargo build --no-default-features --features purple,config,cli
+# GTK renderer + purple theme + config + cli
+cargo build --no-default-features --features renderer-gtk,purple,config,cli
 
-# black theme, no config, no cli (no TOML parser linked at all)
-cargo build --no-default-features --features black
+# GTK renderer + black theme, no config, no cli (no TOML parser linked at all)
+cargo build --no-default-features --features renderer-gtk,black
 ```
 
 Use `--no-default-features` whenever you pick a color, otherwise the default
@@ -120,7 +125,7 @@ just fix     # clippy --fix + fmt + taplo
 ## Hard rules
 
 - **No `unsafe` except one documented call.** Safe Rust only; the single allowed
-  exception is the `glib::setenv` call in `harden_gtk_env` (`src/main.rs`),
+  exception is the `glib::setenv` call in `harden_gtk_env` (`src/ui/gtk/mod.rs`),
   needed to seed the GTK-hardening env vars before GTK initializes. Any new
   `unsafe` requires a strong justification and an `#[expect(unsafe_code, reason = ...)]`.
 - **No `unwrap`/`expect`/panic on externally-influenced data.** That means

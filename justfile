@@ -87,10 +87,11 @@ ci-machete:
 
 [group: 'ci']
 ci-clippy-features:
-    cargo clippy --locked --no-default-features --features config,hyprland,black,wifi,cli -- -Dwarnings
-    cargo clippy --locked --no-default-features --features red -- -Dwarnings
-    cargo clippy --locked --no-default-features --features config,sway,black -- -Dwarnings
-    cargo clippy --locked --no-default-features --features doc,purple --bin doc -- -Dwarnings
+    cargo clippy --locked --no-default-features --features renderer-gtk,config,hyprland,black,wifi,cli -- -Dwarnings
+    cargo clippy --locked --no-default-features --features renderer-gtk,red -- -Dwarnings
+    cargo clippy --locked --no-default-features --features renderer-gtk,config,sway,black -- -Dwarnings
+    cargo clippy --locked --no-default-features --features renderer-gtk,doc,purple --bin doc -- -Dwarnings
+    cargo clippy --locked --no-default-features --features renderer-wayland -- -Dwarnings
 
 [group: 'ci']
 ci-clippy:

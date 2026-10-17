@@ -1,15 +1,6 @@
 use {
-    super::{ComponentWidget, find_widget},
+    super::Component,
     crate::conf::CONFIG,
-    gtk::{
-        Box as GtkBox,
-        EventControllerScroll,
-        EventControllerScrollFlags,
-        Label,
-        glib,
-        prelude::*,
-    },
-    gtk4::{self as gtk, GestureClick},
     pipewire::{
         channel::Receiver,
         context::ContextRc,
@@ -42,6 +33,19 @@ use {
         rc::{Rc, Weak},
     },
 };
+#[cfg(feature = "renderer-gtk")]
+use {
+    super::{GtkView, find_widget},
+    gtk::{
+        Box as GtkBox,
+        EventControllerScroll,
+        EventControllerScrollFlags,
+        Label,
+        glib,
+        prelude::*,
+    },
+    gtk4::{self as gtk, GestureClick},
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Default)]
 struct VolState {
@@ -64,7 +68,7 @@ pub(crate) struct Volume {
     update_rx: async_channel::Receiver<VolState>,
 }
 
-impl ComponentWidget for Volume {
+impl Component for Volume {
     fn init() -> Self {
         let (cmd_tx, cmd_rx) = pipewire::channel::channel::<Cmd>();
         let (update_tx, update_rx) = async_channel::unbounded::<VolState>();
@@ -77,6 +81,17 @@ impl ComponentWidget for Volume {
         }
     }
 
+    fn threads(&mut self) {
+        let Some(cmd_rx) = self.cmd_rx.take() else {
+            return;
+        };
+
+        launch_pipewire_thread(cmd_rx, self.update_tx.clone());
+    }
+}
+
+#[cfg(feature = "renderer-gtk")]
+impl GtkView for Volume {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
         container.add_css_class("volume");
@@ -145,14 +160,6 @@ impl ComponentWidget for Volume {
 
         container.add_controller(on_scroll);
         container.add_controller(on_click);
-    }
-
-    fn threads(&mut self) {
-        let Some(cmd_rx) = self.cmd_rx.take() else {
-            return;
-        };
-
-        launch_pipewire_thread(cmd_rx, self.update_tx.clone());
     }
 }
 

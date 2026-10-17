@@ -1,9 +1,3 @@
-use {
-    gtk::glib,
-    gtk4 as gtk,
-    tkbar::{build_window, init_gtk, load_css},
-};
-
 #[cfg(feature = "cli")]
 #[derive(clap::Parser)]
 #[command(name = "tkbar", version, about = "A GTK4 status bar for Wayland")]
@@ -33,40 +27,5 @@ fn main() {
         }
     }
 
-    harden_gtk_env();
-
-    init_gtk();
-
-    load_css();
-    build_window();
-
-    let main_loop = glib::MainLoop::new(None, false);
-
-    main_loop.run();
-}
-
-/// <https://docs.gtk.org/gtk4/running.html>
-#[expect(
-    unsafe_code,
-    reason = "glib::setenv is unsafe: it mutates the global C environ. This runs at \
-        the start of main, before GTK init and before any thread is spawned, so no \
-        other thread can observe the environment concurrently."
-)]
-fn harden_gtk_env() {
-    let set = |k, v| {
-        // SAFETY: called before GTK init, while still single-threaded.
-        let _ = unsafe { glib::setenv(k, v, true) };
-    };
-
-    // no image loaders
-    set("GDK_PIXBUF_MODULE_FILE", "/dev/null");
-    // no AT-SPI D-Bus export
-    set("GTK_A11Y", "none");
-    // no GL/Vulkan, no driver dlopen
-    set("GSK_RENDERER", "cairo");
-    set("GDK_DISABLE", "gl,vulkan,dmabuf");
-    // never fall back to X11
-    set("GDK_BACKEND", "wayland");
-    // no xdg-desktop-portal round-trips
-    set("GDK_DEBUG", "no-portals");
+    tkbar::run();
 }

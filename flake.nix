@@ -171,7 +171,7 @@
                     cargoLock.lockFile = ./Cargo.lock;
 
                     buildNoDefaultFeatures = true;
-                    buildFeatures = [ color workspace ]
+                    buildFeatures = [ "renderer-gtk" color workspace ]
                         ++ pkgs.lib.optional withConfig "config"
                         ++ components;
 
