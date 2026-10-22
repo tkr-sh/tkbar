@@ -50,7 +50,7 @@ of the form `{ logo = "..." }` for the logo glyph.
 
 Built-in string names:
 
-- `workspaces` (needs a WM backend feature)
+- `workspaces` (needs a compositor backend feature)
 - `spacer`
 - `battery`
 - `wifi` (needs the `wifi` feature)
@@ -128,15 +128,15 @@ stylesheet is ignored; an unreadable one is logged as a warning and skipped.
 ## Feature opt-in/out via Nix
 
 The flake's `packages.default` is `makeOverridable` with `color`,
-`wm`, `withConfig`, and `components` parameters (see
+`compositor`, `withConfig`, `withCli`, and `components` parameters (see
 [`flake.nix`](../flake.nix)). A consumer flake selects the compiled-in theme,
-the WM backend, whether the optional TOML/CSS config is built in, and
+the compositor backend, whether the optional TOML/CSS config is built in, and
 which feature-gated components ship — no forking required:
 
 ```nix
 tkbar.packages.${system}.default.override {
   color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
-  wm = "hyprland";         # one of: niri hyprland sway, or null for no WM backend
+  compositor = "hyprland"; # one of: niri hyprland sway, or null for no compositor backend
   withConfig = false;      # set false to drop the optional TOML/CSS config
   withCli = true;          # set true to enable the clap CLI (--config, --help, --version)
   components = [ "battery" "brightness" "clock" "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop them all
@@ -144,8 +144,8 @@ tkbar.packages.${system}.default.override {
 ```
 
 - `color` selects the compiled-in base theme (exactly one of the ten).
-- `wm` selects the WM backend (`"niri"`, `"hyprland"`, or
-  `"sway"`). At most one is compiled in; `null` builds no WM backend
+- `compositor` selects the compositor backend (`"niri"`, `"hyprland"`, or
+  `"sway"`). At most one is compiled in; `null` builds no compositor backend
   (the `workspaces` component is then unavailable).
 - `withConfig` toggles the optional `config` feature.
 - `withCli` toggles the optional clap-based CLI.
@@ -158,10 +158,10 @@ tkbar.packages.${system}.default.override {
 The plain cargo equivalent is:
 
 ```sh
-cargo build --no-default-features --features purple,hyprland,battery,brightness,clock,wifi,volume
+cargo build --no-default-features --features purple,hyprland,cli,battery,brightness,clock,wifi,volume
 ```
 
-## NixOS module
+## ❄️ NixOS module
 
 The flake also exposes a NixOS module (`nixosModules.default`, aliased as
 `nixosModules.tkbar`) under `programs.tkbar`:
@@ -177,14 +177,24 @@ The flake also exposes a NixOS module (`nixosModules.default`, aliased as
 Example:
 
 ```nix
-programs.tkbar = {
-  enable = true;
-  backlight = {
+{
+  imports = [ tkbar.nixosModules.default ];
+
+  programs.tkbar = {
     enable = true;
-    users = [ "alice" ];
+    backlight = {
+      enable = true;
+      users = [ "alice" ];
+      group = "video";
+    };
   };
-};
+}
 ```
+
+With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default)
+write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs
+directly. Set `backlight.group` to `"video"` to reuse the conventional Linux
+video group instead.
 
 The udev rule fires on device `add`; after the first `nixos-rebuild switch` on an
 already-booted system, apply it without rebooting:
@@ -193,7 +203,7 @@ already-booted system, apply it without rebooting:
 sudo udevadm trigger --subsystem-match=backlight --action=add
 ```
 
-## Home Manager module
+## 🏠 Home Manager module
 
 The flake exposes the module as `homeModules.default` / `homeModules.tkbar`. It
 manages the per-user configuration and, optionally, a systemd user service:
@@ -210,23 +220,27 @@ manages the per-user configuration and, optionally, a systemd user service:
 Example:
 
 ```nix
-programs.tkbar = {
-  enable = true;
+{
+  imports = [ tkbar.homeModules.default ];
 
-  settings = {
-    style = {
-      position = "top";
-      bar_size_px = 32;
+  programs.tkbar = {
+    enable = true;
+
+    settings = {
+      style = {
+        position = "top";
+        bar_size_px = 32;
+      };
+      behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
     };
-    behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
+
+    style = ''
+      .bar { background: #1e1e2e; }
+    '';
+
+    systemd.enable = true;
   };
-
-  style = ''
-    .bar { background: #1e1e2e; }
-  '';
-
-  systemd.enable = true;
-};
+}
 ```
 
 `settings` is a typed attribute set mirroring the TOML schema: unknown keys and

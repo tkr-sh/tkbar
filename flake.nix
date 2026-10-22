@@ -36,7 +36,7 @@
                                 The tkbar package to install.
 
                                 Use `tkbar.packages.${pkgs.stdenv.hostPlatform.system}.default.override { ... }`
-                                to select the compiled-in theme, WM backend, and components.
+                                to select the compiled-in theme, compositor backend, and components.
                                 '';
                             };
 
@@ -134,7 +134,7 @@
                                             description = ''
                                             Ordered widgets to render.
 
-                                            `workspaces` requires a WM backend, and the
+                                            `workspaces` requires a compositor backend, and the
                                             feature-gated components require the matching
                                             compiled-in feature.
                                             '';
@@ -198,7 +198,7 @@
                                 The tkbar package to install.
 
                                 Use `tkbar.packages.${pkgs.stdenv.hostPlatform.system}.default.override { ... }`
-                                to select the compiled-in theme, WM backend, and components.
+                                to select the compiled-in theme, compositor backend, and components.
                                 '';
                             };
 
@@ -363,27 +363,27 @@
 
             # tkbar.packages.${system}.default.override {
             #   color = "purple";               # one of: black blue cyan green orange pink purple red white yellow
-            #   wm = "hyprland";                # one of: niri hyprland sway, or null for no WM backend
+            #   compositor = "hyprland";        # one of: niri hyprland sway, or null for no compositor backend
             #   withConfig = false;             # set false to drop the optional TOML/CSS config
             #   withCli = true;                 # set true to enable the clap CLI (--config, --help, --version)
             #   components = [ "battery" "brightness" "clock" "wifi" "volume" ];  # feature-gated components to build in
             # }
             packages.default = pkgs.lib.makeOverridable
-                ({ color ? "black", wm ? "niri", withConfig ? true, withCli ? false, components ? [ "battery" "brightness" "clock" "wifi" "volume" ] }:
+                ({ color ? "black", compositor ? "niri", withConfig ? true, withCli ? false, components ? [ "battery" "brightness" "clock" "wifi" "volume" ] }:
                 let
                     # Component names mapping 1:1 to Cargo features.
                     allowedComponents = [ "battery" "brightness" "clock" "volume" "wifi" ];
-                    allowedWMs = [ "niri" "hyprland" "sway" ];
+                    allowedCompositors = [ "niri" "hyprland" "sway" ];
                     withVolume = builtins.elem "volume" components;
                     invalidComponents =
                         builtins.filter (c: !(builtins.elem c allowedComponents)) components;
-                    invalidWM =
-                        wm != null && !(builtins.elem wm allowedWMs);
+                    invalidCompositor =
+                        compositor != null && !(builtins.elem compositor allowedCompositors);
                 in
-                if invalidWM
+                if invalidCompositor
                 then throw (
-                    "tkbar: unsupported WM backend '${toString wm}'. "
-                    + "Allowed: " + builtins.concatStringsSep ", " allowedWMs
+                    "tkbar: unsupported compositor backend '${toString compositor}'. "
+                    + "Allowed: " + builtins.concatStringsSep ", " allowedCompositors
                     + ", or null."
                 )
                 else if invalidComponents != []
@@ -400,7 +400,7 @@
 
                     buildNoDefaultFeatures = true;
                     buildFeatures = [ color ]
-                        ++ pkgs.lib.optional (wm != null) wm
+                        ++ pkgs.lib.optional (compositor != null) compositor
                         ++ pkgs.lib.optional withConfig "config"
                         ++ pkgs.lib.optional withCli "cli"
                         ++ components;

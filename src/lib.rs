@@ -130,7 +130,7 @@ const _: () = assert!(
     "exactly one color feature must be enabled: black, blue, cyan, green, orange, pink, purple, red, white, yellow"
 );
 
-const fn wm_backend_count() -> usize {
+const fn compositor_backend_count() -> usize {
     let mut n = 0;
     if cfg!(feature = "niri") {
         n += 1;
@@ -145,6 +145,6 @@ const fn wm_backend_count() -> usize {
 }
 
 const _: () = assert!(
-    wm_backend_count() <= 1,
-    "zero or one of the WM backends must be enabled: niri, hyprland, sway"
+    compositor_backend_count() <= 1,
+    "zero or one of the compositor backends must be enabled: niri, hyprland, sway"
 );

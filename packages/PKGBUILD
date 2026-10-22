@@ -1,0 +1,48 @@
+pkgname=tkbar
+pkgver=0.2.0
+pkgrel=1
+pkgdesc='A minimalist, hardened status bar for Wayland'
+arch=('x86_64' 'aarch64')
+url='https://github.com/tkr-sh/tkbar'
+license=('GPL-3.0-or-later')
+depends=('gtk4' 'gtk4-layer-shell' 'pipewire')
+makedepends=('cargo' 'rust' 'pkgconf' 'clang')
+optdepends=(
+    'niri: workspace widget backend (default build)'
+    'hyprland: workspace widget backend if rebuilt with _compositor=hyprland'
+    'sway: workspace widget backend if rebuilt with _compositor=sway'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/$pkgver.tar.gz")
+sha256sums=('bec6da87bb8a347f522a4d733e43f29573c765691638cfd5572fef1b64670fbd')
+
+_compositor=niri
+_theme=black
+_components=(battery brightness clock volume wifi)
+_features=("$_theme" "$_compositor" cli config "${_components[@]}")
+
+prepare() {
+    cd "$pkgname-$pkgver"
+    cargo fetch --locked --target "$CARCH-unknown-linux-gnu"
+}
+
+build() {
+    cd "$pkgname-$pkgver"
+    local features
+    features=$(IFS=,; printf '%s' "${_features[*]}")
+    cargo build --frozen --release --no-default-features --features "$features"
+}
+
+check() {
+    cd "$pkgname-$pkgver"
+    local features
+    features=$(IFS=,; printf '%s' "${_features[*]}")
+    cargo test --frozen --no-default-features --features "$features"
+}
+
+package() {
+    cd "$pkgname-$pkgver"
+    install -Dm755 "target/release/$pkgname" "$pkgdir/usr/bin/$pkgname"
+    install -Dm644 LICENSE.md "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
+    install -Dm644 packages/99-tkbar-backlight.rules \
+        "$pkgdir/usr/lib/udev/rules.d/99-tkbar-backlight.rules"
+}

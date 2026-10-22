@@ -143,4 +143,4 @@ In short:
 - A **compromised compositor** can overlay, spoof, or intercept anything; this
   is true for every Wayland client and unfixable at this layer.
 
-See the README's [Security](../README.md#security) section for a short summary.
+See the README's [Security](../README.md#-security) section for a short summary.

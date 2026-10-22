@@ -46,7 +46,7 @@
     # - Volume
     pipewire = { version = "0.10", optional = true }
 
-    # - WM backends
+    # - Compositor backends
     hyprland = { version = "0.4.0-beta.3", optional = true, default-features = false, features = [
         "data",
         "dispatch",
@@ -70,7 +70,7 @@
     clock = []
     volume = ["dep:async-channel", "dep:pipewire"]
     wifi = ["dep:async-channel", "dep:neli-wifi"]
-    # --- WM backends
+    # --- Compositor backends
     hyprland = ["dep:async-channel", "dep:hyprland"]
     niri = ["dep:async-channel", "dep:niri-ipc"]
     sway = ["dep:async-channel", "dep:swayipc"]

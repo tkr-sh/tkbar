@@ -52,7 +52,7 @@ A minimalist, hardened status bar for Wayland.
 
 ## ✨ Features
 
-- 🖥️ **Workspace compositors** — [niri](https://github.com/YaLTeR/niri) (default), [Hyprland](https://github.com/hyprwm/Hyprland), and [sway](https://github.com/swaywm/sway), selected at build time via Cargo features.
+- 🖥️ **Wayland compositors** — [niri](https://github.com/YaLTeR/niri) (default), [Hyprland](https://github.com/hyprwm/Hyprland), and [sway](https://github.com/swaywm/sway), selected at build time via Cargo features.
 - 🧩 **Components** — clickable workspaces, battery, Wi-Fi (SSID & signal), brightness, volume, clock, spacer and a logo glyph.
 - 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
@@ -86,7 +86,7 @@ On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`), the defa
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | PipeWire | Unix socket client, gets/sets volume and mute natively | local daemon, node params parsed defensively |
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
-| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#-nixos-module)) | kernel-provided |
+| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](docs/CONFIGURATION.md#️-nixos-module)) | kernel-provided |
 
 What is deliberately **not** in the process, even though a default GTK4 application would have it:
 
@@ -100,69 +100,18 @@ What is deliberately **not** in the process, even though a default GTK4 applicat
 
 These are set by the binary itself before GTK initializes (`harden_gtk_env` in `src/main.rs`), and the Nix wrapper sets the same values again as defense in depth. The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
 
-## ❄️ NixOS module
+## 📥 Installation
 
-The flake ships a NixOS module (`nixosModules.default`) that installs the bar and can grant backlight write access without any setuid binary or external tool:
-
-```nix
-{
-  imports = [ tkbar.nixosModules.default ];
-
-  programs.tkbar = {
-    enable = true;
-    backlight = {
-      enable = true;        # udev rule for /sys/class/backlight/*/brightness
-      users = [ "alice" ];  # members of the backlight group
-      group = "video";    # or reuse the conventional video group
-    };
-  };
-}
-```
-
-With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default) write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs directly. On an already-booted system, apply it after `nixos-rebuild switch` with `sudo udevadm trigger --subsystem-match=backlight --action=add`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all module options.
-
-## 🏠 Home Manager module
-
-The flake also exposes a Home Manager module (`homeModules.default`). It installs the package, writes the TOML/CSS configuration, and can run tkbar as a systemd user service:
-
-```nix
-{
-  imports = [ tkbar.homeModules.default ];
-
-  programs.tkbar = {
-    enable = true;
-
-    settings = {
-      style = {
-        position = "top";
-        bar_size_px = 32;
-      };
-      behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
-    };
-
-    style = ''
-      .bar { background: #1e1e2e; }
-    '';
-
-    systemd.enable = true;
-  };
-}
-```
-
-`settings` is a typed attribute set written to `~/.config/tkbar/config.toml`
-(invalid values fail at evaluation time), and `style` is written to
-`~/.config/tkbar/style.css` (or point `style` at an existing file). The systemd
-service is opt-in. It defaults to `config.wayland.systemd.target` (usually
-`graphical-session.target`); set `systemd.targets` if your compositor uses a
-different target.
+See [docs/INSTALL.md](docs/INSTALL.md) for Nix, Arch Linux (`PKGBUILD`), and
+source builds.
 
 ## ⚙️ Configuration
 
 Optional and strictly validated: unknown keys are rejected, and a missing file
 falls back to the hardcoded default. See
 [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the full TOML format, the
-optional CSS overloading, and how to select a theme or drop the `config`
-feature from Nix.
+optional CSS overloading, how to select a theme or drop the `config` feature
+from Nix, and the NixOS and Home Manager modules.
 
 ## 💻 Usage
 

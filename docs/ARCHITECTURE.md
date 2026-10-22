@@ -83,7 +83,7 @@ subscribes to workspace/window events, feeding a channel on a dedicated thread. 
 GTK side rebuilds the workspace buttons on each update. Click handlers spawn a
 thread per `focus_workspace` call so the main loop never blocks on IPC.
 
-At most one WM backend is compiled in at build time (`niri`, `hyprland`, or
+At most one compositor backend is compiled in at build time (`niri`, `hyprland`, or
 `sway`; the default build enables `niri`). Each exposes the same pair of
 functions — `event_loop(tx)` and
 `focus_workspace(id)` — over the shared `Ws` model in `workspaces/mod.rs`:
