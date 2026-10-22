@@ -17,14 +17,12 @@
             alt="ci status"
         />
     </a>
-    <!--
     <a href="https://crates.io/crates/tkbar">
         <img
             src="https://img.shields.io/crates/d/tkbar.svg?colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=rust&logoColor=cad3f5"
             alt="crates.io downloads"
         />
     </a>
-    -->
     <a href="https://github.com/tkr-sh/tkbar">
         <img
             src="https://img.shields.io/github/stars/tkr-sh/tkbar?colorA=363a4f&colorB=eed49f&style=for-the-badge&logo=star"
@@ -122,6 +120,41 @@ The flake ships a NixOS module (`nixosModules.default`) that installs the bar an
 ```
 
 With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default) write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs directly. On an already-booted system, apply it after `nixos-rebuild switch` with `sudo udevadm trigger --subsystem-match=backlight --action=add`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all module options.
+
+## 🏠 Home Manager module
+
+The flake also exposes a Home Manager module (`homeModules.default`). It installs the package, writes the TOML/CSS configuration, and can run tkbar as a systemd user service:
+
+```nix
+{
+  imports = [ tkbar.homeModules.default ];
+
+  programs.tkbar = {
+    enable = true;
+
+    settings = {
+      style = {
+        position = "top";
+        bar_size_px = 32;
+      };
+      behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
+    };
+
+    style = ''
+      .bar { background: #1e1e2e; }
+    '';
+
+    systemd.enable = true;
+  };
+}
+```
+
+`settings` is a typed attribute set written to `~/.config/tkbar/config.toml`
+(invalid values fail at evaluation time), and `style` is written to
+`~/.config/tkbar/style.css` (or point `style` at an existing file). The systemd
+service is opt-in. It defaults to `config.wayland.systemd.target` (usually
+`graphical-session.target`); set `systemd.targets` if your compositor uses a
+different target.
 
 ## ⚙️ Configuration
 

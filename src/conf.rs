@@ -243,6 +243,14 @@ fn default_components() -> Vec<Component> {
 mod tests {
     use super::*;
 
+    #[cfg(all(
+        feature = "battery",
+        feature = "brightness",
+        feature = "clock",
+        feature = "volume",
+        feature = "wifi",
+        any(feature = "niri", feature = "hyprland", feature = "sway"),
+    ))]
     #[test]
     fn parses_full_config() {
         let config: Config = toml::from_str(include_str!("../docs/config.toml")).unwrap();

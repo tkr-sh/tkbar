@@ -35,7 +35,7 @@ There are several categories of features in [`Cargo.toml`](../Cargo.toml):
 - Exactly one of ten color features: `black`, `blue`, `cyan`, `green`,
   `orange`, `pink`, `purple`, `red`, `white`, `yellow`. This set is the
   compiled-in base stylesheet.
-- The workspace backend: at most one of `niri`, `hyprland`, `sway`. The
+- The WM backend: at most one of `niri`, `hyprland`, `sway`. The
   workspace strip code lives in `src/ui/components/workspaces/`, one module
   per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
   model.

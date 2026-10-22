@@ -50,7 +50,7 @@ of the form `{ logo = "..." }` for the logo glyph.
 
 Built-in string names:
 
-- `workspaces` (needs a workspace backend feature)
+- `workspaces` (needs a WM backend feature)
 - `spacer`
 - `battery`
 - `wifi` (needs the `wifi` feature)
@@ -128,24 +128,27 @@ stylesheet is ignored; an unreadable one is logged as a warning and skipped.
 ## Feature opt-in/out via Nix
 
 The flake's `packages.default` is `makeOverridable` with `color`,
-`workspace`, `withConfig`, and `components` parameters (see
+`wm`, `withConfig`, and `components` parameters (see
 [`flake.nix`](../flake.nix)). A consumer flake selects the compiled-in theme,
-the compositor backend, whether the optional TOML/CSS config is built in, and
+the WM backend, whether the optional TOML/CSS config is built in, and
 which feature-gated components ship — no forking required:
 
 ```nix
 tkbar.packages.${system}.default.override {
   color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
-  workspace = "hyprland";  # one of: niri hyprland sway
+  wm = "hyprland";         # one of: niri hyprland sway, or null for no WM backend
   withConfig = false;      # set false to drop the optional TOML/CSS config
+  withCli = true;          # set true to enable the clap CLI (--config, --help, --version)
   components = [ "battery" "brightness" "clock" "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop them all
 }
 ```
 
 - `color` selects the compiled-in base theme (exactly one of the ten).
-- `workspace` selects the compositor backend (`"niri"`, `"hyprland"`, or
-  `"sway"`); exactly one is compiled in.
+- `wm` selects the WM backend (`"niri"`, `"hyprland"`, or
+  `"sway"`). At most one is compiled in; `null` builds no WM backend
+  (the `workspaces` component is then unavailable).
 - `withConfig` toggles the optional `config` feature.
+- `withCli` toggles the optional clap-based CLI.
 - `components` is the list of feature-gated components to build in. The
   supported names are `"battery"`, `"brightness"`, `"clock"`, `"volume"`, and
   `"wifi"`; set it to `[ ]` to ship a bar without any of those widgets. Each
@@ -189,6 +192,50 @@ already-booted system, apply it without rebooting:
 ```sh
 sudo udevadm trigger --subsystem-match=backlight --action=add
 ```
+
+## Home Manager module
+
+The flake exposes the module as `homeModules.default` / `homeModules.tkbar`. It
+manages the per-user configuration and, optionally, a systemd user service:
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `programs.tkbar.enable` | bool | `false` | Installs the package and manages the configuration files. |
+| `programs.tkbar.package` | package | the flake's default package | The tkbar package to install; use the `.override { ... }` form above to select theme/backend/features. |
+| `programs.tkbar.settings` | attribute set | `{ }` | Typed subset of the TOML file described above, written to `$XDG_CONFIG_HOME/tkbar/config.toml`. |
+| `programs.tkbar.style` | CSS string or path | `null` | Written to `$XDG_CONFIG_HOME/tkbar/style.css`, or linked if a path is given. |
+| `programs.tkbar.systemd.enable` | bool | `false` | Installs a systemd user service for tkbar. |
+| `programs.tkbar.systemd.targets` | list of strings | `[ config.wayland.systemd.target ]` | Targets that start and stop the service. |
+
+Example:
+
+```nix
+programs.tkbar = {
+  enable = true;
+
+  settings = {
+    style = {
+      position = "top";
+      bar_size_px = 32;
+    };
+    behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
+  };
+
+  style = ''
+    .bar { background: #1e1e2e; }
+  '';
+
+  systemd.enable = true;
+};
+```
+
+`settings` is a typed attribute set mirroring the TOML schema: unknown keys and
+out-of-range values fail at evaluation time, and only the fields you set are
+written. At runtime the remaining check is feature availability — a
+`workspaces` entry or a component compiled out of the selected package makes
+tkbar refuse to start. The systemd service is opt-in and defaults to
+`config.wayland.systemd.target`; set `systemd.targets` when the compositor uses
+a custom target (for example `[ "niri-session.target" ]`).
 
 ## Adding a theme
 
