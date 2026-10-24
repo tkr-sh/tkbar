@@ -405,7 +405,7 @@
                     cargoLock.lockFile = ./Cargo.lock;
 
                     buildNoDefaultFeatures = true;
-                    buildFeatures = [ color ]
+                    buildFeatures = [ "renderer-gtk" color ]
                         ++ pkgs.lib.optional (compositor != null) compositor
                         ++ pkgs.lib.optional withConfig "config"
                         ++ pkgs.lib.optional withCli "cli"

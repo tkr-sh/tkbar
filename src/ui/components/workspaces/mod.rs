@@ -1,9 +1,10 @@
+use {super::Component, std::thread};
+#[cfg(feature = "renderer-gtk")]
 use {
-    super::ComponentWidget,
+    super::GtkView,
     crate::conf::CONFIG,
     gtk::{Align, Box as GtkBox, Button, glib, prelude::*},
     gtk4 as gtk,
-    std::thread,
 };
 
 #[cfg(feature = "hyprland")]
@@ -33,13 +34,39 @@ pub(crate) struct Workspaces {
 }
 
 #[cfg(any(feature = "hyprland", feature = "niri", feature = "sway"))]
-impl ComponentWidget for Workspaces {
+impl Component for Workspaces {
     fn init() -> Self {
         let (tx, rx) = async_channel::unbounded::<Vec<Ws>>();
 
         Self { tx, rx }
     }
 
+    fn threads(&mut self) {
+        let tx = self.tx.clone();
+        thread::spawn(move || {
+            #[cfg(feature = "niri")]
+            if let Err(e) = niri::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("niri IPC error: {e}"));
+            }
+
+            #[cfg(feature = "hyprland")]
+            if let Err(e) = hypr::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("hyprland IPC error: {e}"));
+            }
+
+            #[cfg(feature = "sway")]
+            if let Err(e) = sway::event_loop(&tx) {
+                crate::log::warn("workspaces", &format!("sway IPC error: {e}"));
+            }
+        });
+    }
+}
+
+#[cfg(all(
+    feature = "renderer-gtk",
+    any(feature = "hyprland", feature = "niri", feature = "sway")
+))]
+impl GtkView for Workspaces {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 4);
         container.add_css_class("workspaces");
@@ -85,26 +112,6 @@ impl ComponentWidget for Workspaces {
                 }
             }
         ));
-    }
-
-    fn threads(&mut self) {
-        let tx = self.tx.clone();
-        thread::spawn(move || {
-            #[cfg(feature = "niri")]
-            if let Err(e) = niri::event_loop(&tx) {
-                crate::log::warn("workspaces", &format!("niri IPC error: {e}"));
-            }
-
-            #[cfg(feature = "hyprland")]
-            if let Err(e) = hypr::event_loop(&tx) {
-                crate::log::warn("workspaces", &format!("hyprland IPC error: {e}"));
-            }
-
-            #[cfg(feature = "sway")]
-            if let Err(e) = sway::event_loop(&tx) {
-                crate::log::warn("workspaces", &format!("sway IPC error: {e}"));
-            }
-        });
     }
 }
 

@@ -56,7 +56,7 @@ A minimalist, hardened status bar for Wayland.
 - 🧩 **Components** — clickable workspaces, battery, Wi-Fi (SSID & signal), brightness, volume, clock, spacer and a logo glyph.
 - 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
-- ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature; build with `--no-default-features --features <color>` and no parser is linked at all.
+- ⚙️ **Optional configuration** — TOML and CSS live behind the `config` feature; build with `--no-default-features --features renderer-gtk,<color>` and no parser is linked at all.
 - 🔒 **Hardened** — safe Rust apart from one audited `unsafe` call that seeds the GTK-hardening env vars at startup, no network code, no dynamic loading, no panics on external data, a minimal, auditable dependency tree, and a GTK stack trimmed at startup: no GPU driver, no D-Bus, no image loaders. Measured, not claimed (see [Security](#-security)).
 - 💻 **CLI** — optional `clap` feature gate provides `--help`, `--version`, and `--config <path>` flags for overriding the configuration file path at runtime.
 - 🚧 **Coming soon** — optional `logging` (the `log` crate) feature gate, for people who want more batteries included.
@@ -74,7 +74,7 @@ The bar aims for a minimal dependency tree: every crate and library is code that
 | gtk4-layer-shell >= 1.0 | C library implementing the layer-shell protocol |
 | glib | comes with GTK4 |
 
-On top of the always-present GTK bindings (`gtk4`, `gtk4-layer-shell`), the default feature set adds `all_components` (`battery`, `brightness`, `clock`, `volume`, `wifi` — pulling in `async-channel`, `pipewire`, and `neli-wifi`), the `clap` crate (`cli`), `directories`/`serde`/`toml` (`config`), and `niri-ipc` (`niri`). Of the `config` crates, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code; `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features --features <color>` (exactly one color feature is required) to drop the optional crates entirely: no TOML parser is then linked at all.
+On top of the GTK renderer's bindings (`gtk4`, `gtk4-layer-shell`), pulled in by the default `renderer-gtk` feature, the default feature set adds `all_components` (`battery`, `brightness`, `clock`, `volume`, `wifi` — pulling in `async-channel`, `pipewire`, and `neli-wifi`), the `clap` crate (`cli`), `directories`/`serde`/`toml` (`config`), and `niri-ipc` (`niri`). Of the `config` crates, only `serde` is already present transitively via the default `niri` backend (pulled in by `niri-ipc`), so it adds no new transitive code; `directories` and `toml` are genuinely new dependencies, and `toml` in turn pulls in its own small tree. If you build with the `hyprland` backend instead of `niri`, `serde` is also a new dependency. The `sway` backend pulls in `serde`, `serde_json`, and `thiserror` (via `swayipc`/`swayipc-types`). Build with `--no-default-features --features renderer-gtk,<color>` (exactly one renderer and one color feature are required) to drop the optional crates entirely: no TOML parser is then linked at all.
 
 ### Run-time
 
@@ -98,7 +98,7 @@ What is deliberately **not** in the process, even though a default GTK4 applicat
 | gdk-pixbuf image loaders (PNG, SVG, TIFF, ...) | the bar draws text only; image parsers are a classic attack surface | `GDK_PIXBUF_MODULE_FILE` → empty cache |
 | X11 fallback | X11 has no client isolation, and layer-shell needs Wayland anyway | `GDK_BACKEND=wayland` |
 
-These are set by the binary itself before GTK initializes (`harden_gtk_env` in `src/main.rs`), and the Nix wrapper sets the same values again as defense in depth. The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
+These are set by the binary itself before GTK initializes (`harden_gtk_env` in `src/ui/gtk/mod.rs`), and the Nix wrapper sets the same values again as defense in depth. The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
 
 ## 📥 Installation
 
@@ -140,9 +140,9 @@ path for that invocation only.
 ## 🔒 Security
 
 A status bar runs unsandboxed with your full user privileges, so attack surface
-is taken seriously: minimal dependencies, safe Rust — the library is
-`#![forbid(unsafe_code)]`, and the only `unsafe` in the project is a single
-audited `glib::setenv` call at startup, allowed with `#[expect(unsafe_code)]`
+is taken seriously: minimal dependencies, safe Rust — `unsafe_code` is denied
+workspace-wide, and the only `unsafe` in the project is a single audited
+`glib::setenv` call at startup, allowed with `#[expect(unsafe_code)]`
 — no panics on external data, no network code, no
 dynamic loading, a pinned, reproducible build, and a GTK stack stripped of
 everything the bar does not draw with.

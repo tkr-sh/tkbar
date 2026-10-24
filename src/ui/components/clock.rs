@@ -1,18 +1,26 @@
+#[cfg(feature = "renderer-gtk")]
 use {
-    super::{ComponentWidget, find_widget},
+    super::{GtkView, find_widget},
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, Orientation, glib, prelude::*},
     gtk4 as gtk,
     std::fmt::Write as _,
 };
 
+use super::Component;
+
 pub(crate) struct Clock;
 
-impl ComponentWidget for Clock {
+impl Component for Clock {
     fn init() -> Self {
         Self
     }
 
+    fn threads(&mut self) {}
+}
+
+#[cfg(feature = "renderer-gtk")]
+impl GtkView for Clock {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 0);
 
@@ -45,11 +53,9 @@ impl ComponentWidget for Clock {
             ),
         );
     }
-
-    fn threads(&mut self) {}
 }
 
-
+#[cfg(feature = "renderer-gtk")]
 fn update_clock(label: &Label, buf: &mut String) {
     let (h, m, s) = get_hms_now();
     buf.clear();
@@ -62,7 +68,7 @@ fn update_clock(label: &Label, buf: &mut String) {
     label.set_text(buf);
 }
 
-
+#[cfg(feature = "renderer-gtk")]
 fn get_hms_now() -> (u8, u8, u8) {
     let Ok(now) = glib::DateTime::now_local() else {
         return (0, 0, 0);

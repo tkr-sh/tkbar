@@ -7,7 +7,7 @@
 //! is used. An invalid file is a hard error: silently falling back would hide
 //! typos from the user.
 
-use crate::ui::{BarPosition, Component};
+use crate::ui::{BarPosition, ComponentKind};
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]
@@ -26,7 +26,7 @@ pub struct Config {
 #[cfg_attr(feature = "config", serde(default, deny_unknown_fields))]
 pub struct Behaviour {
     #[cfg_attr(feature = "config", serde(default = "default_components"))]
-    pub components: Vec<Component>,
+    pub components: Vec<ComponentKind>,
     /// When a workspace is empty, should it be shown ?
     #[cfg_attr(feature = "config", serde(default = "default_true"))]
     pub should_show_empty_workspace: bool,
@@ -223,22 +223,22 @@ pub(crate) const fn default_10() -> u8 {
     10
 }
 
-fn default_components() -> Vec<Component> {
+fn default_components() -> Vec<ComponentKind> {
     vec![
-        Component::Logo('󱄅'),
+        ComponentKind::Logo('󱄅'),
         #[cfg(any(feature = "niri", feature = "hyprland", feature = "sway"))]
-        Component::Workspaces,
-        Component::Spacer,
+        ComponentKind::Workspaces,
+        ComponentKind::Spacer,
         #[cfg(feature = "battery")]
-        Component::Battery,
+        ComponentKind::Battery,
         #[cfg(feature = "wifi")]
-        Component::Wifi,
+        ComponentKind::Wifi,
         #[cfg(feature = "brightness")]
-        Component::Brightness,
+        ComponentKind::Brightness,
         #[cfg(feature = "volume")]
-        Component::Volume,
+        ComponentKind::Volume,
         #[cfg(feature = "clock")]
-        Component::Clock,
+        ComponentKind::Clock,
     ]
 }
 
@@ -264,7 +264,7 @@ mod tests {
         assert_eq!(config.behaviour.components.len(), 8);
         assert!(matches!(
             config.behaviour.components.first(),
-            Some(Component::Logo('󱄅'))
+            Some(ComponentKind::Logo('󱄅'))
         ));
     }
 

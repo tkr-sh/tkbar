@@ -1,12 +1,11 @@
-use {
-    crate::conf::CONFIG,
-    gtk::{Box as GtkBox, Orientation, prelude::*},
-    gtk4::{self as gtk, Window},
-    gtk4_layer_shell::{Edge, Layer, LayerShell},
-};
 mod components;
 
-pub(crate) use components::Component;
+#[cfg(feature = "renderer-gtk")]
+pub(crate) mod gtk;
+#[cfg(feature = "renderer-wayland")]
+pub(crate) mod wl;
+
+pub(crate) use components::ComponentKind;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[cfg_attr(feature = "doc", derive(serde::Serialize))]

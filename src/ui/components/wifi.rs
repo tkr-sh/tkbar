@@ -1,9 +1,13 @@
 use {
-    super::{ComponentWidget, find_widget, spawn_poller},
+    super::{Component, spawn_poller},
+    std::time::Duration,
+};
+#[cfg(feature = "renderer-gtk")]
+use {
+    super::{GtkView, find_widget},
     crate::conf::CONFIG,
     gtk::{Box as GtkBox, Label, glib, prelude::*},
     gtk4 as gtk,
-    std::time::Duration,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -19,13 +23,32 @@ pub(crate) struct Wifi {
     rx: async_channel::Receiver<WifiState>,
 }
 
-impl ComponentWidget for Wifi {
+impl Component for Wifi {
     fn init() -> Self {
         let (tx, rx) = async_channel::unbounded();
 
         Self { tx, rx }
     }
 
+    fn threads(&mut self) {
+        let mut warned = false;
+        spawn_poller(self.tx.clone(), POLL_INTERVAL, move || {
+            match query() {
+                Some(state) => Some(state),
+                None => {
+                    if !warned {
+                        crate::log::warn("wifi", "nl80211 query failed");
+                        warned = true;
+                    }
+                    Some(WifiState::Disconnected)
+                },
+            }
+        });
+    }
+}
+
+#[cfg(feature = "renderer-gtk")]
+impl GtkView for Wifi {
     fn gtk_box() -> GtkBox {
         let container = GtkBox::new(CONFIG.style.position.orientation(), 2);
         container.add_css_class("wifi");
@@ -68,22 +91,6 @@ impl ComponentWidget for Wifi {
                 }
             }
         ));
-    }
-
-    fn threads(&mut self) {
-        let mut warned = false;
-        spawn_poller(self.tx.clone(), POLL_INTERVAL, move || {
-            match query() {
-                Some(state) => Some(state),
-                None => {
-                    if !warned {
-                        crate::log::warn("wifi", "nl80211 query failed");
-                        warned = true;
-                    }
-                    Some(WifiState::Disconnected)
-                },
-            }
-        });
     }
 }
 
