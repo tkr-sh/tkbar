@@ -17,14 +17,12 @@
             alt="ci status"
         />
     </a>
-    <!--
     <a href="https://crates.io/crates/tkbar">
         <img
             src="https://img.shields.io/crates/d/tkbar.svg?colorA=363a4f&colorB=b7bdf8&style=for-the-badge&logo=rust&logoColor=cad3f5"
             alt="crates.io downloads"
         />
     </a>
-    -->
     <a href="https://github.com/tkr-sh/tkbar">
         <img
             src="https://img.shields.io/github/stars/tkr-sh/tkbar?colorA=363a4f&colorB=eed49f&style=for-the-badge&logo=star"
@@ -54,7 +52,7 @@ A minimalist, hardened status bar for Wayland.
 
 ## ✨ Features
 
-- 🖥️ **Workspace compositors** — [niri](https://github.com/YaLTeR/niri) (default), [Hyprland](https://github.com/hyprwm/Hyprland), and [sway](https://github.com/swaywm/sway), selected at build time via Cargo features.
+- 🖥️ **Wayland compositors** — [niri](https://github.com/YaLTeR/niri) (default), [Hyprland](https://github.com/hyprwm/Hyprland), and [sway](https://github.com/swaywm/sway), selected at build time via Cargo features.
 - 🧩 **Components** — clickable workspaces, battery, Wi-Fi (SSID & signal), brightness, volume, clock, spacer and a logo glyph.
 - 📐 **Any edge** — vertical (`left`/`right`) or horizontal (`top`/`bottom`) bar, with adjustable thickness.
 - 🎨 **Themes** — ten compiled-in color themes, plus an optional user CSS file that overrides the base stylesheet.
@@ -88,7 +86,7 @@ On top of the GTK renderer's bindings (`gtk4`, `gtk4-layer-shell`), pulled in by
 | the compositor's IPC (niri IPC / Hyprland IPC / sway IPC) | Unix socket, workspace list/buttons | trusted (it *is* the compositor) |
 | PipeWire | Unix socket client, gets/sets volume and mute natively | local daemon, node params parsed defensively |
 | nl80211 (`neli-wifi`) | kernel netlink socket, reads Wi-Fi SSID/signal | linked, carries untrusted data (SSID) |
-| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](#-nixos-module)) | kernel-provided |
+| sysfs (`/sys/class/backlight`, `/sys/class/power_supply`) | read directly; backlight also written directly (needs group write access, see the [NixOS module](docs/CONFIGURATION.md#️-nixos-module)) | kernel-provided |
 
 What is deliberately **not** in the process, even though a default GTK4 application would have it:
 
@@ -102,34 +100,18 @@ What is deliberately **not** in the process, even though a default GTK4 applicat
 
 These are set by the binary itself before GTK initializes (`harden_gtk_env` in `src/ui/gtk/mod.rs`), and the Nix wrapper sets the same values again as defense in depth. The bar spawns no external processes: each backend talks to the kernel (nl80211, sysfs), the compositor's IPC socket, or a local daemon (PipeWire) directly.
 
-## ❄️ NixOS module
+## 📥 Installation
 
-The flake ships a NixOS module (`nixosModules.default`) that installs the bar and can grant backlight write access without any setuid binary or external tool:
-
-```nix
-{
-  imports = [ tkbar.nixosModules.default ];
-
-  programs.tkbar = {
-    enable = true;
-    backlight = {
-      enable = true;        # udev rule for /sys/class/backlight/*/brightness
-      users = [ "alice" ];  # members of the backlight group
-      group = "video";    # or reuse the conventional video group
-    };
-  };
-}
-```
-
-With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default) write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs directly. On an already-booted system, apply it after `nixos-rebuild switch` with `sudo udevadm trigger --subsystem-match=backlight --action=add`. See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for all module options.
+See [docs/INSTALL.md](docs/INSTALL.md) for Nix, Arch Linux (`PKGBUILD`), and
+source builds.
 
 ## ⚙️ Configuration
 
 Optional and strictly validated: unknown keys are rejected, and a missing file
 falls back to the hardcoded default. See
 [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for the full TOML format, the
-optional CSS overloading, and how to select a theme or drop the `config`
-feature from Nix.
+optional CSS overloading, how to select a theme or drop the `config` feature
+from Nix, and the NixOS and Home Manager modules.
 
 ## 💻 Usage
 

@@ -1,6 +1,7 @@
 [style]
 position = "left"
 bar_size_px = 72
+outputs = []
 
 [behaviour]
 components = [

@@ -20,7 +20,7 @@ convenience.
 - **Everything is feature-gated.** New behavior is opt-in via Cargo features,
   not a new default dependency.
 
-See the README's [Security](../README.md#security) section and
+See the README's [Security](../README.md#-security) section and
 [`docs/SECURITY.md`](./SECURITY.md) for the full threat model.
 
 ## Feature gating
@@ -38,7 +38,7 @@ There are several categories of features in [`Cargo.toml`](../Cargo.toml):
 - Exactly one of ten color features: `black`, `blue`, `cyan`, `green`,
   `orange`, `pink`, `purple`, `red`, `white`, `yellow`. This set is the
   compiled-in base stylesheet.
-- The workspace backend: at most one of `niri`, `hyprland`, `sway`. The
+- The compositor backend: at most one of `niri`, `hyprland`, `sway`. The
   workspace strip code lives in `src/ui/components/workspaces/`, one module
   per backend exposing `event_loop`/`focus_workspace` over the shared `Ws`
   model.

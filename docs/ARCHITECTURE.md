@@ -9,9 +9,10 @@ registered as a layer-shell surface.
 The repository is a Cargo workspace with two crates: `tkbar` at the root (a
 bin + lib package) and the `tkbar-ci` pipeline in [`ci/`](../ci). The clippy
 lints live once in the root manifest as `[workspace.lints.clippy]`. The flake
-([`flake.nix`](../flake.nix)) provides the package, the devshell, and a NixOS
+([`flake.nix`](../flake.nix)) provides the package, the devshell, a NixOS
 module (`programs.tkbar`) that installs the bar and an optional backlight udev
-rule.
+rule, and a Home Manager module that manages the per-user TOML/CSS
+configuration and an optional systemd user service.
 
 The `tkbar` crate:
 
@@ -94,7 +95,7 @@ subscribes to workspace/window events, feeding a channel on a dedicated thread. 
 GTK side rebuilds the workspace buttons on each update. Click handlers spawn a
 thread per `focus_workspace` call so the main loop never blocks on IPC.
 
-At most one backend is compiled in at build time (`niri`, `hyprland`, or
+At most one compositor backend is compiled in at build time (`niri`, `hyprland`, or
 `sway`; the default build enables `niri`). Each exposes the same pair of
 functions — `event_loop(tx)` and
 `focus_workspace(id)` — over the shared `Ws` model in `workspaces/mod.rs`:
@@ -129,6 +130,9 @@ Widgets read the global `CONFIG` directly, e.g.
 `CONFIG.style.position.orientation()` selects vertical/horizontal layout,
 `CONFIG.style.position.anchors()` sets the layer-shell edges, and
 `CONFIG.behaviour.components` drives widget construction in `build_inner_window`.
+`CONFIG.style.outputs` selects which monitors get a bar: an empty list builds one
+window per monitor, while each name builds on its matching connector (or
+model/description fallback).
 
 ## Theme system
 

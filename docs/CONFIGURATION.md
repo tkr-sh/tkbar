@@ -26,6 +26,10 @@ empty) file is valid, and a missing file falls back to the hardcoded default.
 | --- | --- | --- | --- |
 | `position` | `left` \| `right` \| `top` \| `bottom` | `left` | `left`/`right` give a vertical bar anchored to the top and bottom edges; `top`/`bottom` give a horizontal bar anchored to the left and right edges. |
 | `bar_size_px` | `usize` | `72` | Bar thickness — width for a vertical bar, height for a horizontal one. |
+| `outputs` | list of strings | `[]` | Outputs to draw a bar on. Empty, every output gets a bar. Each entry matches the connector name (for example `DP-1`) first, then the monitor model and description, case-insensitively. Entries with no match are ignored; if none match, all outputs are used. |
+
+Outputs are enumerated at startup. In the GTK renderer, restart tkbar after
+connecting or disconnecting a monitor.
 
 ### `[behaviour]`
 
@@ -50,7 +54,7 @@ of the form `{ logo = "..." }` for the logo glyph.
 
 Built-in string names:
 
-- `workspaces` (needs a workspace backend feature)
+- `workspaces` (needs a compositor backend feature)
 - `spacer`
 - `battery`
 - `wifi` (needs the `wifi` feature)
@@ -72,6 +76,7 @@ component is compiled out is rejected as an unknown variant.
 [style]
 position = "left"
 bar_size_px = 72
+outputs = []
 
 [behaviour]
 components = [
@@ -100,7 +105,9 @@ hardcoded defaults by `just doc`.
 
 - **Unknown keys, unknown component names, and unknown positions are
   rejected** (`deny_unknown_fields` in `src/conf.rs`). A misspelling is a hard
-  error, not a silent no-op.
+  error, not a silent no-op. Output names are resolved at runtime instead:
+  unmatched entries are logged and ignored, and if none match, tkbar falls back
+  to all outputs.
 - **A missing file** falls back to the hardcoded default.
 - **An invalid file is a hard error**: the bar refuses to start and prints the
   parse error with line and column. Silently falling back would hide typos.
@@ -128,7 +135,7 @@ stylesheet is ignored; an unreadable one is logged as a warning and skipped.
 ## Feature opt-in/out via Nix
 
 The flake's `packages.default` is `makeOverridable` with `color`,
-`workspace`, `withConfig`, and `components` parameters (see
+`compositor`, `withConfig`, `withCli`, and `components` parameters (see
 [`flake.nix`](../flake.nix)). A consumer flake selects the compiled-in theme,
 the compositor backend, whether the optional TOML/CSS config is built in, and
 which feature-gated components ship — no forking required:
@@ -136,16 +143,19 @@ which feature-gated components ship — no forking required:
 ```nix
 tkbar.packages.${system}.default.override {
   color = "purple";        # one of: black blue cyan green orange pink purple red white yellow
-  workspace = "hyprland";  # one of: niri hyprland sway
+  compositor = "hyprland"; # one of: niri hyprland sway, or null for no compositor backend
   withConfig = false;      # set false to drop the optional TOML/CSS config
+  withCli = true;          # set true to enable the clap CLI (--config, --help, --version)
   components = [ "battery" "brightness" "clock" "wifi" "volume" ]; # feature-gated components to build in; set [ ] to drop them all
 }
 ```
 
 - `color` selects the compiled-in base theme (exactly one of the ten).
-- `workspace` selects the compositor backend (`"niri"`, `"hyprland"`, or
-  `"sway"`); exactly one is compiled in.
+- `compositor` selects the compositor backend (`"niri"`, `"hyprland"`, or
+  `"sway"`). At most one is compiled in; `null` builds no compositor backend
+  (the `workspaces` component is then unavailable).
 - `withConfig` toggles the optional `config` feature.
+- `withCli` toggles the optional clap-based CLI.
 - `components` is the list of feature-gated components to build in. The
   supported names are `"battery"`, `"brightness"`, `"clock"`, `"volume"`, and
   `"wifi"`; set it to `[ ]` to ship a bar without any of those widgets. Each
@@ -155,10 +165,10 @@ tkbar.packages.${system}.default.override {
 The plain cargo equivalent is:
 
 ```sh
-cargo build --no-default-features --features purple,hyprland,battery,brightness,clock,wifi,volume
+cargo build --no-default-features --features purple,hyprland,cli,battery,brightness,clock,wifi,volume
 ```
 
-## NixOS module
+## ❄️ NixOS module
 
 The flake also exposes a NixOS module (`nixosModules.default`, aliased as
 `nixosModules.tkbar`) under `programs.tkbar`:
@@ -174,14 +184,24 @@ The flake also exposes a NixOS module (`nixosModules.default`, aliased as
 Example:
 
 ```nix
-programs.tkbar = {
-  enable = true;
-  backlight = {
+{
+  imports = [ tkbar.nixosModules.default ];
+
+  programs.tkbar = {
     enable = true;
-    users = [ "alice" ];
+    backlight = {
+      enable = true;
+      users = [ "alice" ];
+      group = "video";
+    };
   };
-};
+}
 ```
+
+With `backlight.enable`, a udev rule gives the `tkbar-backlight` group (default)
+write access to `/sys/class/backlight/*/brightness`, and the bar writes sysfs
+directly. Set `backlight.group` to `"video"` to reuse the conventional Linux
+video group instead.
 
 The udev rule fires on device `add`; after the first `nixos-rebuild switch` on an
 already-booted system, apply it without rebooting:
@@ -189,6 +209,54 @@ already-booted system, apply it without rebooting:
 ```sh
 sudo udevadm trigger --subsystem-match=backlight --action=add
 ```
+
+## 🏠 Home Manager module
+
+The flake exposes the module as `homeModules.default` / `homeModules.tkbar`. It
+manages the per-user configuration and, optionally, a systemd user service:
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `programs.tkbar.enable` | bool | `false` | Installs the package and manages the configuration files. |
+| `programs.tkbar.package` | package | the flake's default package | The tkbar package to install; use the `.override { ... }` form above to select theme/backend/features. |
+| `programs.tkbar.settings` | attribute set | `{ }` | Typed subset of the TOML file described above, written to `$XDG_CONFIG_HOME/tkbar/config.toml`. |
+| `programs.tkbar.style` | CSS string or path | `null` | Written to `$XDG_CONFIG_HOME/tkbar/style.css`, or linked if a path is given. |
+| `programs.tkbar.systemd.enable` | bool | `false` | Installs a systemd user service for tkbar. |
+| `programs.tkbar.systemd.targets` | list of strings | `[ config.wayland.systemd.target ]` | Targets that start and stop the service. |
+
+Example:
+
+```nix
+{
+  imports = [ tkbar.homeModules.default ];
+
+  programs.tkbar = {
+    enable = true;
+
+    settings = {
+      style = {
+        position = "top";
+        bar_size_px = 32;
+      };
+      behaviour.components = [ "workspaces" "spacer" "battery" "clock" ];
+    };
+
+    style = ''
+      .bar { background: #1e1e2e; }
+    '';
+
+    systemd.enable = true;
+  };
+}
+```
+
+`settings` is a typed attribute set mirroring the TOML schema: unknown keys and
+out-of-range values fail at evaluation time, and only the fields you set are
+written. At runtime the remaining check is feature availability — a
+`workspaces` entry or a component compiled out of the selected package makes
+tkbar refuse to start. The systemd service is opt-in and defaults to
+`config.wayland.systemd.target`; set `systemd.targets` when the compositor uses
+a custom target (for example `[ "niri-session.target" ]`).
 
 ## Adding a theme
 
