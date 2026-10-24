@@ -111,6 +111,12 @@
                                             default = null;
                                             description = "Bar thickness in pixels (width for vertical bars, height for horizontal ones).";
                                         };
+
+                                        outputs = lib.mkOption {
+                                            type = lib.types.nullOr (lib.types.listOf lib.types.str);
+                                            default = null;
+                                            description = "Outputs to draw a bar on. Null or an empty list shows a bar on every output.";
+                                        };
                                     };
                                 });
                                 default = null;

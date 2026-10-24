@@ -46,6 +46,8 @@ pub struct Style {
     pub position: BarPosition,
     #[cfg_attr(feature = "config", serde(default = "default_bar_size_px"))]
     pub bar_size_px: usize,
+    #[cfg_attr(feature = "config", serde(default))]
+    pub outputs: Vec<String>,
 }
 
 #[cfg_attr(feature = "config", derive(serde::Deserialize))]
@@ -82,6 +84,7 @@ impl Default for Style {
         Self {
             position: BarPosition::default(),
             bar_size_px: default_bar_size_px(),
+            outputs: Vec::new(),
         }
     }
 }
@@ -257,6 +260,7 @@ mod tests {
 
         assert_eq!(config.style.position, BarPosition::Left);
         assert_eq!(config.style.bar_size_px, 72);
+        assert!(config.style.outputs.is_empty());
         assert_eq!(config.behaviour.components.len(), 8);
         assert!(matches!(
             config.behaviour.components.first(),
@@ -269,10 +273,18 @@ mod tests {
         let config: Config = toml::from_str("").unwrap();
         assert_eq!(config.style.position, BarPosition::Left);
         assert_eq!(config.style.bar_size_px, default_bar_size_px());
+        assert!(config.style.outputs.is_empty());
         assert_eq!(
             config.behaviour.components.len(),
             default_components().len()
         );
+    }
+
+    #[test]
+    fn parses_outputs() {
+        let config: Config =
+            toml::from_str("[style]\noutputs = [\"DP-1\", \"HDMI-A-1\"]\n").unwrap();
+        assert_eq!(config.style.outputs, ["DP-1", "HDMI-A-1"]);
     }
 
     #[test]
@@ -338,6 +350,7 @@ mod tests {
         let config = load_from(Some(std::path::Path::new("/nonexistent/tkbar.toml")));
         assert_eq!(config.style.position, BarPosition::Left);
         assert_eq!(config.style.bar_size_px, default_bar_size_px());
+        assert!(config.style.outputs.is_empty());
         assert_eq!(
             config.behaviour.components.len(),
             default_components().len()

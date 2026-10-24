@@ -118,6 +118,9 @@ Widgets read the global `CONFIG` directly, e.g.
 `CONFIG.style.position.orientation()` selects vertical/horizontal layout,
 `CONFIG.style.position.anchors()` sets the layer-shell edges, and
 `CONFIG.behaviour.components` drives widget construction in `build_inner_window`.
+`CONFIG.style.outputs` selects which monitors get a bar: an empty list builds one
+window per monitor, while each name builds on its matching connector (or
+model/description fallback).
 
 ## Theme system
 

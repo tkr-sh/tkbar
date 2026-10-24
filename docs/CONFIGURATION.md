@@ -26,6 +26,10 @@ empty) file is valid, and a missing file falls back to the hardcoded default.
 | --- | --- | --- | --- |
 | `position` | `left` \| `right` \| `top` \| `bottom` | `left` | `left`/`right` give a vertical bar anchored to the top and bottom edges; `top`/`bottom` give a horizontal bar anchored to the left and right edges. |
 | `bar_size_px` | `usize` | `72` | Bar thickness — width for a vertical bar, height for a horizontal one. |
+| `outputs` | list of strings | `[]` | Outputs to draw a bar on. Empty, every output gets a bar. Each entry matches the connector name (for example `DP-1`) first, then the monitor model and description, case-insensitively. Entries with no match are ignored; if none match, all outputs are used. |
+
+Outputs are enumerated at startup. In the GTK renderer, restart tkbar after
+connecting or disconnecting a monitor.
 
 ### `[behaviour]`
 
@@ -72,6 +76,7 @@ component is compiled out is rejected as an unknown variant.
 [style]
 position = "left"
 bar_size_px = 72
+outputs = []
 
 [behaviour]
 components = [
@@ -100,7 +105,9 @@ hardcoded defaults by `just doc`.
 
 - **Unknown keys, unknown component names, and unknown positions are
   rejected** (`deny_unknown_fields` in `src/conf.rs`). A misspelling is a hard
-  error, not a silent no-op.
+  error, not a silent no-op. Output names are resolved at runtime instead:
+  unmatched entries are logged and ignored, and if none match, tkbar falls back
+  to all outputs.
 - **A missing file** falls back to the hardcoded default.
 - **An invalid file is a hard error**: the bar refuses to start and prints the
   parse error with line and column. Silently falling back would hide typos.
